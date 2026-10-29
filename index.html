@@ -1,0 +1,1161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>우리은하 천체 탐험대</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 관측소 카탈로그 카드 격자 + 하단 모달 시트. 우주 화면이라 의도적으로 어두운 단일 테마 */
+:root{
+  --sky:#0a0c18; --panel:#12162b; --panel2:#191e38; --line:#2a3058;
+  --fg:#ebe9f7; --muted:#9a9dc2; --gold:#f2c14e; --gold-ink:#1a1405;
+  --open:#7fb1ff; --glob:#ffb46e; --emis:#ff6f86; --refl:#7fd0ff; --dark:#a49cb8; --mw:#d9c7ff;
+  --ok:#6fdc9a; --warn:#ffb46e;
+  --display:"Do Hyeon","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--sky);color:var(--fg)}
+body{font-family:var(--body);font-size:16px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--sky)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0;letter-spacing:.01em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.title h1{font-size:clamp(30px,6vw,44px);line-height:1.1}
+.title p{margin:6px 0 0;color:var(--muted);max-width:60ch}
+.team{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.team label{font-size:13px;color:var(--muted);letter-spacing:.06em}
+.team input{background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--fg);font:inherit;padding:8px 12px;width:9em}
+.score{font-family:var(--display);font-size:22px;background:var(--gold);color:var(--gold-ink);border-radius:999px;padding:4px 16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* tabs */
+.tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--tbh,0px));z-index:20;background:var(--sky);display:flex;gap:6px;margin:22px 0 18px;padding:8px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:0;padding:8px 14px;border-radius:8px;font-family:var(--display);font-size:19px;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--panel2);color:var(--fg)}
+.tab .n{font-family:var(--mono);font-size:12px;margin-left:6px;color:var(--gold)}
+@media (max-width:520px){.tabs{gap:2px}.tab{font-size:16px;padding:6px 8px}.tab .n{font-size:11px;margin-left:3px}}
+
+/* tip strip */
+.tip{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:15px}
+.tip a{color:var(--gold);font-weight:700}
+.tip span{color:var(--muted)}
+
+/* mission grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{position:relative;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s,border-color .15s}
+.card:hover{transform:translateY(-2px);border-color:var(--muted)}
+.card .thumb{display:block;width:100%;aspect-ratio:16/9;background:#05060d;max-width:100%}
+.card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.card .code{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.card .m{font-family:var(--display);font-size:20px;line-height:1.25}
+.card .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--muted)}
+.chip.south{border-color:var(--warn);color:var(--warn)}
+.chip.type{color:var(--sky);border:0;font-weight:700}
+.stamp{position:absolute;top:10px;right:10px;font-family:var(--display);background:var(--gold);color:var(--gold-ink);border-radius:999px;padding:2px 12px;font-size:15px;box-shadow:0 2px 10px #0008}
+.locked .thumb{filter:none}
+
+/* sheet */
+.overlay{position:fixed;inset:0;z-index:40;background:#03040acc;display:flex;align-items:flex-end;justify-content:center;padding-top:calc(24px + env(safe-area-inset-top,0px))}
+.sheet{background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:100%;overflow-y:auto;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));padding-block:18px calc(22px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.overlay{align-items:center;padding:24px}.sheet{border-radius:18px;border-bottom:1px solid var(--line)}}
+.sheet-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.x{background:var(--panel2);border:0;border-radius:999px;width:36px;height:36px;flex:none;font-size:18px}
+.sheet h2{font-size:26px;line-height:1.2}
+.sheet .code{font-family:var(--mono);color:var(--gold);font-size:14px}
+.steps{display:grid;gap:10px;margin:16px 0}
+.howto{background:var(--panel2);border-radius:12px;padding:12px 14px;display:grid;gap:6px;font-size:15px}
+.howto b{color:var(--gold);font-weight:700}
+.howto .alert{color:var(--warn)}
+.q{margin:18px 0 0}
+.q h3{font-size:20px;margin-bottom:10px}
+.opts{display:grid;gap:8px}
+.opt{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:16px}
+.opt:hover{border-color:var(--muted)}
+.opt[aria-pressed="true"]{border-color:var(--gold);background:#2a2412}
+.cta{display:block;width:100%;margin-top:18px;background:var(--gold);color:var(--gold-ink);border:0;border-radius:12px;padding:14px;font-family:var(--display);font-size:21px}
+.cta[disabled]{opacity:.35;cursor:default}
+.ghost{background:none;border:1px solid var(--line);border-radius:12px;padding:10px 14px;color:var(--muted)}
+.reveal canvas{width:100%;aspect-ratio:16/9;border-radius:12px;display:block;background:#05060d}
+.verdict{margin-top:14px;padding:14px;border-radius:12px;background:var(--panel2)}
+.verdict .big{font-family:var(--display);font-size:24px}
+.verdict.good .big{color:var(--ok)}
+.verdict.miss .big{color:var(--warn)}
+.typebox{margin-top:12px;display:grid;gap:4px}
+.typebox .name{font-family:var(--display);font-size:22px}
+.fact{margin-top:12px;font-size:15px;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px}
+.nick{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.nick input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;padding:10px 12px}
+.stars{color:var(--gold);letter-spacing:2px;font-size:20px}
+
+/* dex */
+.shelf{margin-bottom:22px}
+.shelf-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:10px}
+.shelf-head h2{font-size:24px}
+.shelf-head .sub{color:var(--muted);font-size:14px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;align-self:center}
+.dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.dex-item{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-align:left;padding:0}
+.dex-item canvas{display:block;width:100%;aspect-ratio:4/3}
+.dex-item .lbl{padding:8px 10px;font-size:14px}
+.dex-item .lbl small{display:block;color:var(--gold);font-size:12px}
+.dex-item.empty{display:grid;place-items:center;aspect-ratio:4/3.9;color:var(--muted);font-family:var(--display);font-size:30px;border-style:dashed}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.note h3{font-size:22px;margin-bottom:4px}
+.note p{margin:0 0 10px;color:var(--muted);font-size:15px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:280px}
+th,td{border-top:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:400;white-space:nowrap}
+.mantra{margin-top:14px;display:grid;gap:6px;font-size:15px}
+.mantra div{background:var(--panel2);border-radius:10px;padding:8px 12px}
+.lockmsg{color:var(--muted);font-size:14px;margin:0 0 12px}
+
+/* quiz */
+.qcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.qcard h3{font-size:20px;margin-bottom:10px}
+.qcard .num{font-family:var(--mono);color:var(--gold);font-size:13px;display:block;margin-bottom:2px}
+.opt.right{border-color:var(--ok);background:#12301f}
+.opt.wrong{border-color:var(--emis);background:#3a1620}
+.expl{margin-top:10px;font-size:15px;color:var(--muted)}
+.rowbtns{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+
+/* present */
+.present{position:fixed;inset:0;z-index:50;background:radial-gradient(ellipse at 50% 30%,#1d2350,var(--sky) 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
+.present .tname{font-family:var(--display);font-size:clamp(40px,9vw,84px);line-height:1}
+.present .bigscore{font-family:var(--display);font-size:clamp(28px,6vw,52px);color:var(--gold)}
+.present .fav{max-width:520px;width:100%}
+.present .fav canvas{width:100%;aspect-ratio:16/9;border-radius:14px;display:block}
+.present .favname{font-family:var(--display);font-size:clamp(24px,5vw,40px);margin-top:10px}
+.present .favreal{color:var(--muted)}
+.present .badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.present{justify-content:space-between}
+.pslide{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;width:100%;max-width:820px}
+.pnav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center}
+.pnav .tool[disabled]{opacity:.35}
+.pcount{font-family:var(--mono);color:var(--muted);min-width:5em}
+.pkind{font-family:var(--display);font-size:clamp(20px,3.5vw,28px)}
+.pmemos{display:grid;gap:8px;width:100%;max-width:640px;text-align:left}
+.pmemo{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:clamp(15px,2.2vw,19px)}
+.pmemo b{font-family:var(--display);font-weight:400;color:var(--gold);margin-right:6px}
+.pfact{color:var(--muted);font-size:15px;max-width:640px}
+.pnote{color:var(--muted);font-size:16px}
+.psum{display:grid;gap:10px;width:100%;max-width:720px;text-align:left}
+.psrow{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:clamp(15px,2.2vw,19px)}
+.pmiss{margin-left:auto;font-size:13px;color:var(--warn)}
+.footer{margin-top:30px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--muted);font-size:13px}
+/* standalone + class tracking */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+[hidden]{display:none!important}
+.team select{background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--fg);font:inherit;padding:8px 10px}
+.sync{font-size:13px;border-radius:999px;padding:3px 10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.sync.ok{color:var(--ok);border-color:var(--ok)}
+.sync.wait{color:var(--warn);border-color:var(--warn)}
+.memo{margin-top:16px}
+.memo h3{font-size:20px;margin-bottom:4px}
+.memo p{margin:0 0 8px;color:var(--muted);font-size:14px}
+.memo textarea{width:100%;min-height:80px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;color:var(--fg);font:inherit;padding:10px 12px;resize:vertical}
+.memo .cnt{font-size:13px;color:var(--muted);text-align:right}
+.mymemo{margin-top:12px;background:var(--panel2);border-radius:12px;padding:10px 14px;font-size:15px}
+.mymemo b{color:var(--gold);font-weight:400;font-family:var(--display)}
+.banner{background:#4a1b22;color:#ffd7dd;padding:10px 16px;font-size:14px}
+@media (max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:10px}.card .m{font-size:16px}.card .code{font-size:11px}.card .body{padding:10px}}
+/* tools + teacher mode */
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px}
+.tool{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:7px 16px;font-family:var(--display);font-size:16px;color:var(--fg)}
+.tool:hover{border-color:var(--gold)}
+#teacherBtn{margin-left:auto}
+#resetConfirm{font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.teachbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:25;background:#3a2c08;border-bottom:1px solid var(--gold)}
+.teachbar .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));font-size:14px;color:#ffe9b0}
+.teachbar b{font-family:var(--display);font-weight:400;font-size:18px;color:var(--gold)}
+.teachbar .tool{padding:5px 12px;font-size:15px}
+/* galaxy tab */
+.gintro{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:18px;display:grid;gap:8px}
+.gintro h2{font-size:24px}
+.gintro p{margin:0;color:var(--muted);font-size:15px}
+.gstep{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:18px;display:grid;gap:12px;min-width:0}
+.gstep.done{border-color:#3b6b52}
+.ghead{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.ghead .no{font-family:var(--mono);color:var(--gold);font-size:13px}
+.ghead h3{font-size:23px}
+.ghead .ok{color:var(--ok);font-size:14px}
+.gstep .lead{margin:0;font-size:15px}
+.gstep .lead b{color:var(--gold);font-weight:400;font-family:var(--display);font-size:17px}
+.gcv{display:block;width:100%;max-width:100%;border-radius:12px;background:#03040a;touch-action:manipulation}
+.gcv.sq{aspect-ratio:4/3}
+.gpair{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.gpair .cap{font-size:13px;color:var(--muted);margin-top:4px}
+.gctl{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px;color:var(--muted)}
+.gctl input[type=range]{flex:1;min-width:160px;accent-color:var(--gold)}
+.gctl .val{font-family:var(--display);font-size:18px;color:var(--fg);min-width:5.5em}
+.tog{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;color:var(--muted)}
+.tog[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.gmsg{background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:15px}
+.gmsg.good{color:var(--ok)}
+.gmsg.miss{color:#ffd29a}
+.meter{height:12px;border-radius:999px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,#7fb1ff,#f2c14e);width:0;transition:width .2s}
+.gq{display:grid;gap:8px}
+.gq h4{margin:6px 0 0;font-family:var(--display);font-weight:400;font-size:18px}
+.gq .opt.right{border-color:var(--ok);background:#12301f}
+.gq .opt.wrong{border-color:var(--emis);background:#3a1620}
+.gq .why{font-size:14px;color:var(--muted)}
+.gbtns{display:flex;flex-wrap:wrap;gap:10px}
+.gbtns .cta{width:auto;margin-top:0;padding:10px 22px;font-size:19px}
+.lg{display:inline}
+@media (max-width:520px){.lg{display:none}}
+/* zones + team */
+.tstat{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:14px;color:var(--muted)}
+.tstat.ok span{color:var(--ok)}
+.tstat.err{border-color:var(--emis)}
+.tstat.err span{color:#ffb3c0}
+.tstat .ghost{padding:6px 12px}
+.goal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:18px;display:grid;gap:10px}
+.goal h2{font-size:22px}
+.goal p{margin:0;color:var(--muted);font-size:14px}
+.zdots{display:flex;flex-wrap:wrap;gap:8px}
+.zdot{font-family:var(--display);font-size:16px;border:1px dashed var(--line);border-radius:999px;padding:3px 14px;color:var(--muted)}
+.zdot.done{border:1px solid var(--gold);background:var(--gold);color:var(--gold-ink)}
+.zone{margin-bottom:22px}
+.zone-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline;margin-bottom:10px}
+.zone-head h2{font-size:24px}
+.zone-head .sub{color:var(--muted);font-size:14px}
+.zone-head .ok{color:var(--ok);font-size:14px}
+.mates{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mate{font-size:12px;border-radius:999px;padding:1px 8px;background:#2a2412;color:var(--gold);border:1px solid #5a4a1a}
+.mate.me{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.dex-item.team{opacity:.92}
+.dex-item .by{display:block;color:var(--muted);font-size:12px}
+.teamfeed{display:grid;gap:8px;margin-top:6px}
+.feed{background:var(--panel2);border-radius:10px;padding:8px 12px;font-size:14px}
+.feed b{color:var(--gold);font-weight:400;font-family:var(--display)}
+.absent{margin-top:12px;color:var(--muted);font-size:14px}
+.absent b{color:var(--warn);font-weight:400}
+/* teacher */
+.pinbox{display:grid;gap:10px;margin-top:14px}
+.pinbox input{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:22px;padding:10px 12px;letter-spacing:.3em}
+.dash{position:fixed;inset:0;z-index:45;background:var(--sky);overflow-y:auto}
+.dash .wrap{max-width:none}
+.dash-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.dash-top h2{font-size:28px}
+.dash-ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.dash-ctrl select,.dash-ctrl input{background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--fg);font:inherit;padding:6px 10px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.matrix{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.matrix table{min-width:900px;font-size:13px}
+.matrix th,.matrix td{text-align:center;padding:6px 5px;border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.matrix th:first-child,.matrix td:first-child{position:sticky;left:0;background:var(--panel);text-align:left;white-space:nowrap;font-family:var(--display);font-size:16px;border-left:0}
+.matrix thead th{color:var(--muted);font-weight:400;vertical-align:bottom;border-top:0;font-size:12px;line-height:1.3}
+.cell{background:none;border:0;padding:2px 4px;border-radius:6px;font-variant-numeric:tabular-nums;width:100%}
+.cell .s{color:var(--gold);display:block;letter-spacing:1px}
+.cell .t{font-size:11px;color:var(--muted)}
+.cell.fast{background:#4a1b22}
+.cell.fast .t{color:#ffb3c0}
+.cell.short{outline:1px dashed var(--warn)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.detail{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-height:60px}
+.detail h3{font-size:20px;margin-bottom:6px}
+.detail .row{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:14px;margin-bottom:6px}
+.detail blockquote{margin:8px 0 0;padding:10px 12px;background:var(--panel2);border-radius:10px;font-size:16px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .45s ease-out}
+
+/* ---------- 별과 우주 공통 메뉴 ---------- */
+.unitnav{position:relative;z-index:5;background:#050816;border-bottom:1px solid #26335E;font-family:'Do Hyeon','Noto Sans KR',sans-serif}
+.unitnav .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.unitnav .lbl{color:#9BA8CE;font-size:15px;margin-right:4px}
+.unitnav a{color:#EAF0FF;text-decoration:none;font-size:17px;padding:4px 12px;border-radius:999px;border:1px solid #26335E;white-space:nowrap}
+.unitnav a:hover{border-color:#9BA8CE}
+.unitnav a[aria-current="page"]{background:#FFD166;color:#1a1200;border-color:#FFD166}
+@media (max-width:480px){.unitnav .lbl{display:none}.unitnav a{font-size:15px;padding:3px 10px}.unitnav .in{gap:6px}}
+</style>
+</head>
+<body>
+
+<div class="banner" id="banner" hidden></div>
+<div class="teachbar" id="teachbar" hidden><div class="in"><b>교사 모드</b><span>여기서 누르는 내용은 시트에 기록되지 않아요.</span><button class="tool" id="tbDash">탐사 현황 보기</button><button class="tool" id="tbExit">교사 모드 끝내기</button></div></div>
+<div class="wrap">
+  <header class="top">
+    <div class="title">
+      <h1>우리은하 천체 탐험대</h1>
+      <p>스텔라리움으로 우리은하 속 천체를 찾아 관찰하고, 본 대로 기록하면 도감이 채워져요.</p>
+    </div>
+    <div class="team">
+      <label for="clsSel">반</label>
+      <select id="clsSel"></select>
+      <label for="teamSel">모둠</label>
+      <select id="teamSel"></select>
+      <label for="numSel">번호</label>
+      <select id="numSel"></select>
+      <span class="score" id="scoreBadge">★ 0</span>
+      <span class="sync" id="syncPill">전송 준비</span>
+    </div>
+  </header>
+  <div class="tools">
+    <button class="tool" id="presentBtn">발표 화면</button>
+    <button class="tool" id="resetBtn">처음부터 다시</button>
+    <button class="tool" id="teacherBtn">선생님</button>
+    <span id="resetConfirm" hidden>정말 이 기기의 기록을 지울까요? <button class="tool" id="resetYes">지우기</button> <button class="tool" id="resetNo">취소</button></span>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="galaxy" aria-selected="true">우리은하<span class="n" id="nGalaxy"></span></button>
+    <button class="tab" role="tab" data-tab="mission" aria-selected="false">탐사 미션<span class="n" id="nMission"></span></button>
+    <button class="tab" role="tab" data-tab="dex" aria-selected="false"><span class="lg">천체 </span>도감<span class="n" id="nDex"></span></button>
+    <button class="tab" role="tab" data-tab="note" aria-selected="false">탐험 노트<span class="n" id="nNote"></span></button>
+    <button class="tab" role="tab" data-tab="quiz" aria-selected="false"><span class="lg">최종 </span>퀴즈<span class="n" id="nQuiz"></span></button>
+  </nav>
+
+  <section id="tab-galaxy">
+    <div class="gintro">
+      <h2>우리은하 탐험</h2>
+      <p>우리가 사는 은하는 어떻게 생겼고, 그 안에서 보면 왜 은하수가 띠로 보일까? 네 단계를 차례로 해결해 보세요.</p>
+      <div class="zdots" id="gDots"></div>
+    </div>
+    <div id="gSteps"></div>
+  </section>
+
+  <section id="tab-mission" hidden>
+    <div class="tip">
+      <div>관측 도구 <a href="https://stellarium-web.org" target="_blank" rel="noopener">stellarium-web.org</a></div>
+      <span>검색창에 <b>카탈로그 번호</b>를 넣고, 찾으면 화면을 크게 확대해 보세요.</span>
+      <span><b style="color:var(--warn)">남쪽 하늘</b> 천체는 지형(가로 방향)을 꺼야 보여요.</span>
+    </div>
+    <div class="goal" id="goal"></div>
+    <div id="missionGrid"></div>
+  </section>
+
+  <section id="tab-dex" hidden>
+    <div class="tstat" id="teamStat"><span>모둠원 기록 불러오는 중...</span><button class="ghost" id="teamReload">모둠 기록 새로고침</button></div>
+    <div id="dexShelves"></div>
+  </section>
+
+  <section id="tab-note" hidden>
+    <p class="lockmsg" id="noteLock"></p>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <section id="tab-quiz" hidden>
+    <p class="lockmsg">탐사를 마쳤다면 도전! 틀려도 다시 풀 수 있어요.</p>
+    <div id="quizList"></div>
+    <div class="rowbtns"><button class="ghost" id="quizReset">퀴즈 다시 풀기</button></div>
+  </section>
+
+</div>
+
+<div class="overlay" id="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="present" id="present" hidden></div>
+<div class="dash" id="dash" hidden><div class="wrap">
+  <div class="dash-top"><h2>탐사 현황</h2>
+    <div class="dash-ctrl">
+      <input type="date" id="dDay" aria-label="날짜"><button class="tog" id="dAll" aria-pressed="false">모든 날짜</button>
+      <select id="dCls" aria-label="반"></select>
+      <button class="ghost" id="dRefresh">새로고침</button>
+      <span class="sync" id="dStatus"></span>
+      <button class="ghost" id="dClose">닫기</button>
+    </div></div>
+  <div class="legend"><span>★ 관찰 점수 · 숫자는 걸린 시간</span><span style="color:#ffb3c0">빨간 칸: 30초 미만 (확인 필요)</span><span style="color:var(--warn)">점선 칸: 관측 메모가 짧음</span><span>칸을 누르면 관측 메모가 보여요</span></div>
+  <div class="matrix" id="dMatrix"></div>
+  <div class="absent" id="dAbsent"></div>
+  <div class="detail" id="dDetail"><span style="color:var(--muted)">칸을 누르면 학생이 쓴 관측 메모와 답이 여기에 나와요.</span></div>
+</div></div>
+
+<script>
+window.addEventListener('error',function(e){var b=document.getElementById('banner');if(!b)return;b.textContent=window.__appReady?('앱 오류가 났어요. 페이지를 새로고침해 주세요. 계속 뜨면 선생님께 이 문구를 알려 주세요. ('+(e.message||'')+')'):('설정 오류: '+(e.message||'')+' (CONFIG의 따옴표와 쉼표를 확인하세요)');b.hidden=false});
+</script>
+<!-- ===== 설정: 이 부분만 고치세요 ===== -->
+<script>
+const CONFIG = {
+  // 구글 Apps Script 웹 앱 주소 (배포 후 받은 /exec 로 끝나는 주소)
+  GAS_URL: "https://script.google.com/macros/s/AKfycbywHhHW_svLyGPfsMPeNOPMZbgX6WB0ySXEDRP2Ks6gvmQDZ9HYYfEdKsZ9OAS6A80/exec",
+  // 반 목록 (학교에 맞게 고치세요)
+  CLASSES: ["3-3","3-4","3-5","3-6","3-7","3-8","3-9","3-10","3-11"],
+  // 모둠 수
+  TEAMS: 8,
+  // 반별 마지막 번호 (가장 큰 번호)
+  STUDENTS:31
+};
+</script>
+<!-- ===== 설정 끝 ===== -->
+
+<script>
+/* ---------- data ---------- */
+const TYPES={
+  open:{name:'산개 성단',group:'성단',color:'var(--open)',hex:'#7fb1ff',
+    desc:'수십~수만 개의 별이 일정한 모양 없이 모여 있어요. 파란색의 젊은 별이 많아요.',where:'주로 우리은하의 나선팔'},
+  globular:{name:'구상 성단',group:'성단',color:'var(--glob)',hex:'#ffb46e',
+    desc:'수만~수십만 개의 별이 공 모양으로 빽빽하게 모여 있어요. 붉은색의 늙은 별이 많아요.',where:'우리은하 중심부와 원반을 둘러싼 구형 공간'},
+  emission:{name:'방출 성운',group:'성운',color:'var(--emis)',hex:'#ff6f86',
+    desc:'근처의 뜨거운 별에서 에너지를 받아 가스가 스스로 붉은빛을 내요.',where:'주로 우리은하의 나선팔'},
+  reflection:{name:'반사 성운',group:'성운',color:'var(--refl)',hex:'#7fd0ff',
+    desc:'스스로 빛을 내지 못하고 주변 별빛을 반사해서 파랗게 보여요.',where:'주로 우리은하의 나선팔'},
+  dark:{name:'암흑 성운',group:'성운',color:'var(--dark)',hex:'#a49cb8',
+    desc:'가스와 먼지가 뒤에서 오는 별빛을 가려 검게 보여요.',where:'주로 우리은하의 나선팔'},
+  milkyway:{name:'은하수',group:'우리은하',color:'var(--mw)',hex:'#d9c7ff',
+    desc:'원반 모양인 우리은하를 그 안에서 바라본 모습이에요.',where:'우리는 은하 중심에서 약 8500 pc 떨어진 나선팔에 있어요'}
+};
+const OBJ=[
+ {id:'mw',type:'milkyway',name:'은하수 시간 여행',code:'날짜·시간 바꾸기',mission:'7월 밤과 1월 밤의 은하수를 비교하라',con:'궁수자리 ↔ 오리온자리',
+  how:['아래 메뉴에서 <b>대기</b>와 <b>지형</b>을 꺼요.','오른쪽 아래 날짜를 <b>7월 15일 밤 10시</b>로 맞추고 남쪽 하늘(Sagittarius)을 봐요.','날짜를 <b>1월 15일 밤 10시</b>로 바꾸고 오리온자리(Orion) 근처를 봐요.'],
+  fact:'궁수자리 방향에 우리은하의 중심이 있어요. 그곳에는 태양 질량의 약 400만 배인 블랙홀이 숨어 있어요.'},
+ {id:'beehive',type:'open',name:'벌집 성단',code:'NGC 2632',alt:'M44',con:'게자리',mission:'벌들이 모여 사는 집을 찾아라',
+  fact:'맨눈으로는 희미한 얼룩처럼 보여서, 망원경이 나오기 전에는 별 무리가 아니라 구름으로 여겼대요.'},
+ {id:'pleiades',type:'open',name:'좀생이성단',code:'M45',alt:'Pleiades',con:'황소자리',mission:'겨울밤의 일곱 자매를 찾아라',
+  fact:'우리 조상들은 좀생이별이라 불렀어요. 일본 이름은 스바루인데, 자동차 회사 로고가 이 성단이에요.'},
+ {id:'jewelbox',type:'open',name:'보석 상자',code:'NGC 4755',alt:'Jewel Box',con:'남십자자리',south:true,mission:'남쪽 하늘의 보석 상자를 열어라',
+  fact:'파란 별들 사이에 붉은 별이 하나 박혀 있어서 보석함처럼 보여요.'},
+ {id:'tuc47',type:'globular',name:'큰부리새자리 47',code:'NGC 104',alt:'47 Tuc',con:'큰부리새자리',south:true,mission:'큰부리새가 품은 별 공을 찾아라',
+  fact:'수십만 개가 넘는 별이 지름 약 120광년 공간에 몰려 있어요. 밤하늘에서 두 번째로 밝은 구상 성단이에요.'},
+ {id:'omega',type:'globular',name:'오메가 성단',code:'NGC 5139',alt:'Omega Centauri',con:'센타우루스자리',south:true,mission:'우리은하에서 가장 큰 별 공을 찾아라',
+  fact:'별이 약 1000만 개나 모여 있는, 우리은하에서 가장 큰 구상 성단이에요.'},
+ {id:'m13',type:'globular',name:'헤르쿨레스 구상 성단',code:'M13',alt:'NGC 6205',con:'헤르쿨레스자리',mission:'외계인에게 편지를 보낸 곳을 찾아라',
+  fact:'1974년 사람들이 이 성단을 향해 외계인에게 보내는 전파 메시지를 쐈어요. 도착하려면 약 2만 5천 년이 걸려요.'},
+ {id:'crescent',type:'emission',name:'초승달 성운',code:'NGC 6888',alt:'Crescent Nebula',con:'백조자리',mission:'백조자리의 초승달을 찾아라',
+  fact:'아주 무겁고 뜨거운 별이 내뿜는 강한 바람이 주변 가스를 밀어내 거품처럼 만든 성운이에요.'},
+ {id:'chicken',type:'emission',name:'달리는 닭 성운',code:'C 100',alt:'IC 2944',con:'센타우루스자리',south:true,mission:'하늘을 달리는 닭을 잡아라',
+  fact:'모양이 달리는 닭 같다고 붙은 별명이에요. 이 안에서 지금도 새 별이 태어나고 있어요.'},
+ {id:'rosette',type:'emission',name:'장미 성운',code:'NGC 2237',alt:'Rosette Nebula',con:'외뿔소자리',mission:'우주에 핀 장미를 찾아라',
+  fact:'가운데 구멍은 안쪽 젊은 별들의 빛과 바람이 가스를 날려 버려서 생겼어요.'},
+ {id:'runningman',type:'reflection',name:'런닝맨 성운',code:'NGC 1973',alt:'Running Man',con:'오리온자리',mission:'오리온자리에서 달리는 사람을 찾아라',
+  fact:'오리온 대성운 바로 위에 있어요. 어두운 먼지 줄무늬가 달리는 사람 모양을 만들어요.'},
+ {id:'iris',type:'reflection',name:'아이리스 성운',code:'C 4',alt:'NGC 7023',con:'세페우스자리',mission:'세페우스자리의 붓꽃을 찾아라',
+  fact:'아이리스는 붓꽃이라는 뜻이에요. 가운데 밝은 별의 빛을 먼지가 반사해 파랗게 피어나요.'},
+ {id:'coalsack',type:'dark',name:'석탄 포대',code:'C 99',alt:'Coalsack',con:'남십자자리',south:true,mission:'은하수에 뚫린 검은 구멍을 찾아라',
+  fact:'남반구에서는 맨눈으로도 은하수 한가운데 구멍이 난 것처럼 보여요.'},
+ {id:'horsehead',type:'dark',name:'말머리 성운',code:'Barnard 33',alt:'Horsehead',con:'오리온자리',mission:'오리온자리의 말 그림자를 찾아라',
+  fact:'뒤쪽의 붉은 방출 성운 빛을 먼지 구름이 가려서 말 머리 그림자처럼 보여요.'}
+];
+const ORDER=['open','globular','emission','reflection','dark'];
+const MAXPTS=OBJ.length*3;
+
+/* truth attributes */
+function truth(t){return{
+  open:{kind:'stars',shape:'scatter',color:'blue'},
+  globular:{kind:'stars',shape:'ball',color:'warm'},
+  emission:{kind:'cloud',ccolor:'red'},
+  reflection:{kind:'cloud',ccolor:'blue'},
+  dark:{kind:'cloud',ccolor:'black'}}[t]}
+
+/* ---------- state ---------- */
+const KEY='mw-hunt-v3';
+const CFG=(typeof CONFIG==='object'&&CONFIG)||{};
+const GAS=String(CFG.GAS_URL||'').replace(/[“”‘’]/g,'').trim();
+const CLASSES=Array.isArray(CFG.CLASSES)&&CFG.CLASSES.length?CFG.CLASSES.map(String):['2-1'];
+const NTEAMS=+CFG.TEAMS||8;
+const NSTU=+CFG.STUDENTS||23;
+let S={cls:CLASSES[0],teamNo:'1',num:'',found:{},quiz:{},galaxy:{},queue:[]};
+try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw))}catch(e){}
+if(!Array.isArray(S.queue))S.queue=[];
+if(!S.galaxy||typeof S.galaxy!=='object')S.galaxy={};
+let TEACH=false,SAVED=null;
+function save(){if(TEACH)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const $=s=>document.querySelector(s);
+const teamLabel=()=>`${S.cls}반 ${S.teamNo}모둠`;
+const meLabel=()=>`${S.cls}반 ${S.teamNo}모둠 ${S.num}번`;
+/* 탐사 구역: 종류를 미리 알려 주지 않으려고 번호로만 부름 */
+const ZONES=[{n:1,t:'open'},{n:2,t:'globular'},{n:3,t:'emission'},{n:4,t:'reflection'},{n:5,t:'dark'}];
+const zoneDone=z=>OBJ.some(o=>o.type===z.t&&S.found[o.id]);
+/* 모둠원 기록 (시트에서 받아 옴) */
+let teamRows=[];
+let teamStat={state:'idle',msg:''};
+async function loadTeam(){
+  if(!GAS){teamStat={state:'idle',msg:'내가 찾은 천체가 이 도감에 모여요.'};showTeamStat();const rb=$('#teamReload');if(rb)rb.hidden=true;return}
+  if(!S.num){teamStat={state:'wait',msg:'번호를 고르면 모둠원 기록을 불러와요.'};showTeamStat();return}
+  try{const r=await fetch(`${GAS}?mode=team&cls=${encodeURIComponent(S.cls)}&team=${encodeURIComponent(S.teamNo)}&t=${Date.now()}`,{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok){teamStat={state:'err',msg:j.error==='pin'?'모둠원 기록을 불러오지 못했어요. 선생님: 구글 시트의 Apps Script를 새 Code.gs로 바꿔 새 버전으로 배포해 주세요.':'모둠원 기록을 불러오지 못했어요 ('+j.error+')'};showTeamStat();return}
+    const latest={};(j.rows||[]).map(x=>(x.num=String(x.num==null?'':x.num).trim(),x)).sort((a,b)=>a.ts-b.ts).forEach(x=>{if(x.kind==='mission')latest[x.num+'|'+x.id]=x});
+    teamRows=Object.values(latest);
+    // 이 기기에 기록이 없어도(새로고침, 다른 태블릿, 저장 차단) 시트에 남은 내 기록을 되살림
+    let restored=0;
+    teamRows.filter(x=>x.num===String(S.num)).forEach(x=>{
+      if(/^g[1-4]$/.test(x.id)){if(!S.galaxy[x.id]){S.galaxy[x.id]={points:+x.points||0,restored:true};restored++}return}
+      const o=OBJ.find(k=>k.id===x.id);if(!o||S.found[x.id])return;
+      const pts=+x.points||0;
+      S.found[x.id]={points:pts,guess:(o.type==='milkyway'||pts===3)?o.type:null,answers:{},nick:'',memo:String(x.memo||''),secs:0,restored:true};restored++});
+    if(restored){save();renderTop()}
+    const others=new Set(teamRows.filter(x=>x.num!==String(S.num)).map(x=>x.num)).size;
+    teamStat={state:'ok',msg:`${restored?`내 기록 ${restored}개 복원 · `:''}${teamLabel()} 기록 불러옴 · 모둠원 ${others}명 · ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`};
+    renderMissions();if(!$('#tab-dex').hidden)renderDex();showTeamStat();
+  }catch(e){teamStat={state:'err',msg:'인터넷 연결을 확인해 주세요. 모둠원 기록을 불러오지 못했어요.'};showTeamStat()}
+}
+function showTeamStat(){const el=$('#teamStat');if(!el)return;el.className='tstat '+teamStat.state;el.querySelector('span').textContent=teamStat.msg||'모둠원 기록 불러오는 중...'}
+const matesFor=id=>teamRows.filter(r=>r.id===id&&String(r.num)!==String(S.num));
+setInterval(loadTeam,20000);
+
+/* ---------- 전송 (구글 시트) ---------- */
+function today(d){d=d||new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function send(ev){if(TEACH)return;ev.uid=Date.now().toString(36)+Math.random().toString(36).slice(2,7);ev.ts=Date.now();ev.cls=S.cls;ev.team=S.teamNo;ev.num=S.num;S.queue.push(ev);save();flush()}
+let flushing=false;
+async function flush(){
+  const pill=$('#syncPill');
+  if(TEACH){pill.className='sync';pill.textContent='교사 모드 · 전송 안 함';return}
+  if(!GAS){pill.className='sync';pill.textContent='이 기기에 저장';return}
+  if(flushing||!S.queue.length){if(!S.queue.length){pill.className='sync ok';pill.textContent='선생님께 전송됨 ✓'}return}
+  flushing=true;pill.className='sync wait';pill.textContent=`전송 중 ${S.queue.length}건`;
+  const batch=S.queue.slice(0,20);
+  try{
+    const r=await fetch(GAS,{method:'POST',body:JSON.stringify(batch)});
+    const j=await r.json();if(!j.ok)throw new Error(j.error||'fail');
+    const sent=new Set(batch.map(b=>b.uid));S.queue=S.queue.filter(q=>!sent.has(q.uid));save();
+    flushing=false;
+    if(S.queue.length)flush();else{pill.className='sync ok';pill.textContent='선생님께 전송됨 ✓';loadTeam()}
+  }catch(e){flushing=false;pill.className='sync wait';pill.textContent=`전송 대기 ${S.queue.length}건`}
+}
+setInterval(flush,15000);
+window.addEventListener('online',flush);
+
+/* ---------- canvas art ---------- */
+function rng(seed){let a=0;for(const c of seed)a=(a*31+c.charCodeAt(0))|0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const g=r=>(r()+r()+r()+r()-2)/1.15;
+function star(ctx,x,y,s,col,glow){
+  if(glow){const gr=ctx.createRadialGradient(x,y,0,x,y,s*5);gr.addColorStop(0,col);gr.addColorStop(1,'rgba(0,0,0,0)');ctx.globalAlpha=.35;ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,s*5,0,7);ctx.fill();ctx.globalAlpha=1}
+  ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,s,0,7);ctx.fill()}
+function blob(ctx,x,y,r,col,a){const gr=ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,col.replace('A',a));gr.addColorStop(1,col.replace('A',0));ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill()}
+function draw(cv,o,mystery){
+  const dpr=Math.min(2,window.devicePixelRatio||1);const w=cv.clientWidth||320,h=cv.clientHeight||180;
+  cv.width=w*dpr;cv.height=h*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  const r=rng(o.id),cx=w/2,cy=h/2,U=Math.min(w,h);
+  ctx.fillStyle='#04050c';ctx.fillRect(0,0,w,h);
+  const field=n=>{for(let i=0;i<n;i++)star(ctx,r()*w,r()*h,r()*.8+.2,`rgba(220,225,255,${.25+r()*.5})`)};
+  field(mystery?60:90);
+  if(mystery){ctx.fillStyle='rgba(242,193,78,.85)';ctx.font=`${U*.32}px "Do Hyeon",sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy);return}
+  ctx.globalCompositeOperation='lighter';
+  const t=o.type;
+  if(t==='open'){
+    const n=o.id==='pleiades'?14:40;
+    if(o.id==='pleiades')for(let i=0;i<40;i++)blob(ctx,cx+g(r)*U*.3,cy+g(r)*U*.22,U*(.12+r()*.12),'rgba(90,140,255,A)',.07);
+    for(let i=0;i<n;i++){const big=r()<.25;let col=['#ffffff','#cfe0ff','#9fc2ff'][r()*3|0];if(o.id==='jewelbox'&&i===3)col='#ffb070';
+      star(ctx,cx+g(r)*U*.32,cy+g(r)*U*.24,big?1.8+r()*1.4:.8+r(),col,true)}
+  }else if(t==='globular'){
+    blob(ctx,cx,cy,U*.35,'rgba(255,200,140,A)',.35);
+    for(let i=0;i<2600;i++){const rr=U*.42*Math.pow(r(),2.2),a=r()*6.283;
+      star(ctx,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,.4+r()*.8,['#ffe2a8','#ffc98a','#fff3d6','#ffaa66'][r()*4|0])}
+  }else if(t==='emission'){
+    const pts=[];
+    for(let i=0;i<170;i++){let x,y;
+      if(o.id==='rosette'){const a=r()*6.283,rad=U*(.26+g(r)*.06);x=cx+Math.cos(a)*rad;y=cy+Math.sin(a)*rad}
+      else if(o.id==='crescent'){const a=-1.2+r()*3.6,rad=U*(.3+g(r)*.03);x=cx+Math.cos(a)*rad*1.1;y=cy+Math.sin(a)*rad*.8}
+      else{x=cx+g(r)*U*.4;y=cy+g(r)*U*.22}
+      pts.push([x,y])}
+    pts.forEach(([x,y])=>blob(ctx,x,y,U*(.05+r()*.1),r()<.75?'rgba(255,70,105,A)':'rgba(255,150,120,A)',.16));
+    for(let i=0;i<10;i++)star(ctx,cx+g(r)*U*.3,cy+g(r)*U*.2,1+r()*1.2,'#e6f0ff',true);
+  }else if(t==='reflection'){
+    for(let i=0;i<120;i++)blob(ctx,cx+g(r)*U*.32,cy+g(r)*U*.22,U*(.05+r()*.1),r()<.8?'rgba(80,150,255,A)':'rgba(150,200,255,A)',.15);
+    star(ctx,cx,cy,3,'#ffffff',true);star(ctx,cx,cy,1.6,'#ffffff',true);
+    if(o.id==='runningman'){ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(4,5,12,.65)';ctx.lineCap='round';ctx.lineWidth=U*.05;
+      [[-.25,-.05,.0,-.02],[.0,-.02,.12,.18],[.0,-.02,.2,-.2],[-.05,.0,-.2,.2]].forEach(([a,b,c,d])=>{ctx.beginPath();ctx.moveTo(cx+a*U,cy+b*U);ctx.lineTo(cx+c*U,cy+d*U);ctx.stroke()})}
+  }else if(t==='dark'){
+    for(let i=0;i<900;i++){const y=cy+g(r)*h*.25;star(ctx,r()*w,y,.3+r()*.8,`rgba(255,240,220,${.3+r()*.6})`)}
+    if(o.id==='horsehead')for(let i=0;i<90;i++)blob(ctx,r()*w,h*(.05+r()*.45),U*(.08+r()*.1),'rgba(255,70,100,A)',.13);
+    else for(let i=0;i<40;i++)blob(ctx,r()*w,cy+g(r)*h*.2,U*.15,'rgba(255,230,200,A)',.06);
+    ctx.globalCompositeOperation='source-over';
+    const dark=(x,y,rad)=>{const gr=ctx.createRadialGradient(x,y,rad*.4,x,y,rad);gr.addColorStop(0,'rgba(3,3,8,.97)');gr.addColorStop(1,'rgba(3,3,8,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,rad,0,7);ctx.fill()};
+    if(o.id==='horsehead'){ctx.fillStyle='rgba(3,3,8,.97)';ctx.fillRect(0,h*.62,w,h);
+      for(let i=0;i<14;i++)dark(cx+(r()-.5)*U*.12,h*.62-i*U*.022,U*.07);
+      dark(cx-U*.07,h*.62-U*.3,U*.09);dark(cx-U*.14,h*.62-U*.24,U*.07);
+      for(let i=0;i<18;i++)dark(r()*w,h*.66,U*.09)}
+    else{for(let i=0;i<22;i++)dark(cx+g(r)*U*.14,cy+g(r)*U*.12,U*(.1+r()*.08))}
+  }else if(t==='milkyway'){
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(-.35);
+    for(let i=0;i<120;i++)blob(ctx,(r()-.5)*w*1.3,g(r)*U*.08,U*(.08+r()*.1),r()<.7?'rgba(220,200,255,A)':'rgba(255,200,150,A)',.09);
+    for(let i=0;i<40;i++)blob(ctx,g(r)*U*.25,g(r)*U*.08,U*.12,'rgba(255,215,170,A)',.12);
+    for(let i=0;i<900;i++)star(ctx,(r()-.5)*w*1.3,g(r)*U*.12,.3+r()*.7,'rgba(255,250,240,.8)');
+    ctx.restore();ctx.globalCompositeOperation='source-over';
+    for(let i=0;i<14;i++){ctx.fillStyle='rgba(4,5,12,.5)';ctx.beginPath();ctx.ellipse(cx+(r()-.5)*U*.6,cy+(r()-.5)*U*.12+(r()-.5)*20,U*.12,U*.015,-.35,0,7);ctx.fill()}
+  }
+  ctx.globalCompositeOperation='source-over';
+}
+
+/* ---------- render missions ---------- */
+function score(){return Object.values(S.found).reduce((a,f)=>a+f.points,0)+Object.values(S.galaxy||{}).reduce((a,f)=>a+(+f.points||0),0)}
+function renderTop(){
+  $('#scoreBadge').textContent=`★ ${score()}`;
+  const n=Object.keys(S.found).length;
+  $('#nMission').textContent=`${n}/${OBJ.length}`;
+  $('#nDex').textContent=n;
+  $('#nNote').textContent=n<5?`${n}/5`:'열림';
+  const qd=Object.keys(S.quiz).length;$('#nQuiz').textContent=qd?`${QUIZ.filter((q,i)=>S.quiz[i]===q.a).length}/${QUIZ.length}`:'';
+}
+function renderMissions(){
+  const done=ZONES.filter(zoneDone).length;
+  $('#goal').innerHTML=`<h2>${S.num?`${esc(meLabel())}의 목표: 구역마다 1곳씩, 5곳 탐사`:'먼저 위에서 반, 모둠, 번호를 골라 주세요'}</h2>
+    <div class="zdots">${ZONES.map(z=>`<span class="zdot${zoneDone(z)?' done':''}">${z.n}구역${zoneDone(z)?' ✓':''}</span>`).join('')}</div>
+    <p>${done>=5?'목표 달성! 남은 시간에는 다른 천체도 더 찾아보세요.':'모둠원이 이미 찾은 천체에는 번호가 떠요. 서로 다른 곳을 고르면 모둠 도감이 더 빨리 채워져요.'}</p>`;
+  const box=$('#missionGrid');box.innerHTML='';
+  [...ZONES.map(z=>({title:`${z.n}구역`,sub:`${OBJ.filter(o=>o.type===z.t).length}곳 중 1곳 이상`,list:OBJ.filter(o=>o.type===z.t),ok:zoneDone(z)}))].forEach(sec=>{
+    const wrap=document.createElement('div');wrap.className='zone';
+    wrap.innerHTML=`<div class="zone-head"><h2>${sec.title}</h2><span class="sub">${sec.sub}</span>${sec.ok?'<span class="ok">완료 ✓</span>':''}</div><div class="grid"></div>`;
+    box.appendChild(wrap);const grid=wrap.querySelector('.grid');
+  sec.list.forEach(o=>{
+    const f=S.found[o.id];const mates=matesFor(o.id);
+    const b=document.createElement('button');b.className='card';
+    b.innerHTML=`<canvas class="thumb"></canvas>${f?`<span class="stamp pop">${'★'.repeat(f.points)||'발견'}</span>`:''}
+      <span class="body"><span class="code">${o.code}${o.alt?' · '+o.alt:''}</span>
+      <span class="m">${o.mission}</span>
+      <span class="meta"><span class="chip">${o.con}</span>${o.south?'<span class="chip south">남쪽 하늘</span>':''}
+      ${f?`<span class="chip type" style="background:${TYPES[o.type].color}">${o.type==='milkyway'?'우리은하':TYPES[o.type].name}</span>`:''}</span>
+      ${(f||mates.length)?`<span class="mates">${f?'<span class="mate me">나</span>':''}${mates.map(m=>`<span class="mate">${esc(String(m.num))}번 ${'★'.repeat(+m.points||0)}</span>`).join('')}</span>`:''}</span>`;
+    b.onclick=()=>openMission(o);grid.appendChild(b);
+    requestAnimationFrame(()=>draw(b.querySelector('canvas'),o,!f));
+  });
+  });
+}
+
+/* ---------- mission sheet ---------- */
+let cur=null,ans={};
+function questionsFor(o){
+  if(o.type==='milkyway')return[
+    {k:'season',t:'은하수가 더 두껍고 밝게 보인 때는?',o:[['jul','7월 밤'],['jan','1월 밤']]},
+    {k:'dir',t:'그때 바라본 쪽은 교과서 그림 9의 어느 방향일까?',o:[['A','A 쪽 (은하 중심 방향)'],['B','B 쪽 (은하 바깥 방향)']]},
+    {k:'why',t:'왜 계절마다 다르게 보일까?',o:[['night','계절마다 밤하늘이 향하는 방향이 달라져서'],['near','여름에는 지구가 은하 중심에 가까이 가서'],['clear','여름 하늘이 더 맑아서']]}];
+  const qs=[{k:'kind',t:'화면에서 무엇이 보였나요?',o:[['stars','작은 별들이 모여 있다'],['cloud','구름처럼 뿌옇게 퍼져 있다']]}];
+  if(ans.kind==='stars'){qs.push({k:'shape',t:'별들은 어떻게 모여 있나요?',o:[['scatter','일정한 모양 없이 흩어져 있다'],['ball','공처럼 둥글고 빽빽하다']]});
+    qs.push({k:'color',t:'별들은 주로 무슨 색인가요?',o:[['blue','파란빛, 하얀빛'],['warm','노란빛, 붉은빛']]})}
+  if(ans.kind==='cloud')qs.push({k:'ccolor',t:'구름은 무슨 색으로 보이나요?',o:[['red','붉은색으로 빛난다'],['blue','파란색으로 빛난다'],['black','검은 그림자처럼 별빛을 가린다']]});
+  return qs;
+}
+function openMission(o){
+  if(!S.num&&!TEACH){$('#sheet').innerHTML=`<div class="sheet-head"><h2>번호를 먼저 골라 주세요</h2><button class="x" aria-label="닫기">✕</button></div><p>화면 위쪽에서 반, 모둠, 번호를 고르면 탐사를 시작할 수 있어요.</p>`;bindClose();openSheet();return}
+  cur=o;ans={};const f=S.found[o.id];if(f){showReveal(f.answers,true);return}showHow()}
+function showHow(){
+  const o=cur;
+  const how=o.how||[`검색창에 <b>${o.code}</b>를 입력해요.${o.alt?` 안 나오면 <b>${o.alt}</b>로 검색해요.`:''}`,'찾은 천체를 크게 확대해서 자세히 관찰해요.'];
+  if(o.south)how.splice(1,0,'<span class="alert">우리나라에서는 지평선 아래에 있어요. 아래 메뉴에서 지형(가로 방향)을 끄세요.</span>');
+  $('#sheet').innerHTML=`<div class="sheet-head"><div><div class="code">${o.code}${o.alt&&!o.how?' · '+o.alt:''}</div><h2>${o.mission}</h2></div><button class="x" aria-label="닫기">✕</button></div>
+   <div class="howto">${how.map(h=>`<div>${h}</div>`).join('')}<div style="color:var(--muted)">별자리: ${o.con}</div></div>
+   <div class="memo"><h3>관측 메모</h3><p>스텔라리움에서 직접 본 모습을 우리 말로 적어 주세요. (예: 별이 몇 개쯤, 어떤 모양, 무슨 색, 주변에 무엇이 있었나)</p>
+   <textarea id="memoIn" maxlength="200" placeholder="10자 이상 써야 다음으로 넘어갈 수 있어요"></textarea><div class="cnt" id="memoCnt">0자</div></div>
+   <div id="qs"></div><button class="cta" id="submit" disabled>관찰 결과 확인하기</button>`;
+  openedAt=Date.now();memo='';
+  $('#memoIn').addEventListener('input',e=>{memo=e.target.value;$('#memoCnt').textContent=memo.trim().length+'자';updateSubmit()});
+  bindClose();renderQs();openSheet();
+}
+let openedAt=0,memo='';
+function updateSubmit(){const qs=questionsFor(cur);const s=$('#submit');if(s)s.disabled=!(qs.every(q=>ans[q.k])&&memo.trim().length>=10)}
+function renderQs(){
+  const qs=questionsFor(cur),box=$('#qs');box.innerHTML='';
+  qs.forEach(q=>{const d=document.createElement('div');d.className='q';
+    d.innerHTML=`<h3>${q.t}</h3><div class="opts">${q.o.map(([v,l])=>`<button class="opt" aria-pressed="${ans[q.k]===v}" data-k="${q.k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    box.appendChild(d)});
+  box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{const k=b.dataset.k;ans[k]=b.dataset.v;
+    if(k==='kind'){delete ans.shape;delete ans.color;delete ans.ccolor}renderQs()});
+  $('#submit').onclick=()=>finish();updateSubmit();
+}
+function grade(o,a){
+  if(o.type==='milkyway'){let p=0;if(a.season==='jul')p++;if(a.dir==='A')p++;if(a.why==='night')p++;return{points:p,guess:'milkyway'}}
+  const T=truth(o.type);let p=0,guess;
+  if(a.kind==='stars'){guess=a.shape==='ball'?'globular':'open'}else{guess={red:'emission',blue:'reflection',black:'dark'}[a.ccolor]}
+  if(a.kind===T.kind){if(T.kind==='stars'){p=1+(a.shape===T.shape)+(a.color===T.color)}else{p=1+(a.ccolor===T.ccolor?2:0)}}
+  return{points:p,guess};
+}
+function finish(){
+  const r=grade(cur,ans),secs=Math.round((Date.now()-openedAt)/1000),m=memo.trim();
+  S.found[cur.id]={points:r.points,guess:r.guess,answers:{...ans},nick:'',memo:m,secs};save();
+  send({kind:'mission',id:cur.id,points:r.points,guess:r.guess,memo:m,secs,extra:{answers:{...ans}}});
+  showReveal(ans,false);renderAll()}
+function showReveal(a,again){
+  const o=cur,f=S.found[o.id],T=TYPES[o.type];
+  let verdict;
+  if(o.type==='milkyway'){
+    verdict=f.points===3?['good','은하수 박사!','7월 밤에는 밤하늘이 우리은하 중심(A 쪽, 궁수자리)을 향해서 별이 많이 겹쳐 보여요.']
+     :['miss','다시 생각해 볼까?','지구가 공전하면서 밤하늘(태양 반대쪽)이 향하는 방향이 바뀌어요. 7월 밤에는 은하 중심(A 쪽)을, 1월 밤에는 은하 바깥(B 쪽)을 봐요. 지구 공전 궤도는 우리은하에 비해 아주 작아서 은하 중심에 가까워지지는 않아요.'];
+  }else if(f.guess===o.type){verdict=['good','관찰 성공!',`여러분이 본 대로 ${T.name}이에요.`]}
+  else if(f.restored&&!f.guess){verdict=['miss','저장된 기록을 불러왔어요',`이 천체는 ${T.name}이에요. ${hint(o.type)}`]}
+  else{const G=TYPES[f.guess];verdict=['miss','앗, 다시 보면?',`여러분은 ${G?G.name:'다른 것'}처럼 봤지만 실제로는 ${T.name}이에요. ${hint(o.type)}`]}
+  $('#sheet').innerHTML=`<div class="sheet-head"><div><div class="code">${o.code}</div><h2>${o.name}</h2></div><button class="x" aria-label="닫기">✕</button></div>
+   <div class="reveal" style="margin-top:12px"><canvas></canvas></div>
+   <div class="verdict ${verdict[0]}"><div class="big">${verdict[1]} <span class="stars">${'★'.repeat(f.points)}${'☆'.repeat(3-f.points)}</span></div><div>${verdict[2]}</div></div>
+   <div class="typebox"><span class="name" style="color:${T.color}">${o.type==='milkyway'?'우리은하':T.name}</span><span>${T.desc}</span><span style="color:var(--muted)">위치: ${T.where}</span></div>
+   ${f.memo?`<div class="mymemo"><b>내 관측 메모</b> ${esc(f.memo)}</div>`:''}
+   ${matesFor(o.id).length?`<div class="teamfeed">${matesFor(o.id).map(m=>`<div class="feed"><b>${esc(String(m.num))}번도 관측</b> ${'★'.repeat(+m.points||0)} ${esc(String(m.memo||''))}</div>`).join('')}</div>`:''}
+   <div class="fact">알고 있었나요? ${o.fact}</div>
+   <div class="nick"><input id="nickIn" maxlength="16" placeholder="우리 모둠이 지어 줄 별명" value="${(f.nick||'').replace(/"/g,'&quot;')}"><button class="ghost" id="nickSave">별명 저장</button></div>
+   <div class="rowbtns" style="margin-top:12px"><button class="cta" id="done" style="margin-top:0">도감에 넣기</button>${again?'<button class="ghost" id="redo">다시 관찰하기</button>':''}</div>`;
+  bindClose();openSheet();
+  requestAnimationFrame(()=>draw($('.reveal canvas'),o,false));
+  $('#nickSave').onclick=()=>{f.nick=$('#nickIn').value.trim();save();$('#nickSave').textContent='저장됨';renderAll()};
+  $('#done').onclick=()=>{f.nick=$('#nickIn').value.trim();save();closeSheet();renderAll()};
+  const rd=$('#redo');if(rd)rd.onclick=()=>{delete S.found[o.id];save();renderAll();ans={};showHow()};
+}
+function hint(t){return{
+  open:'별들이 모양 없이 흩어져 있고 파랗게 빛나는지 다시 확인해 보세요.',
+  globular:'확대하면 수많은 별이 공처럼 빽빽하게 모여 있어요.',
+  emission:'구름이 스스로 붉게 빛나고 있어요.',
+  reflection:'가운데 밝은 별 주변이 파랗게 빛나요.',
+  dark:'밝은 배경 앞에서 검은 그림자처럼 별빛을 가리고 있어요.'}[t]}
+function bindClose(){$('#sheet .x').onclick=closeSheet}
+function openSheet(){$('#overlay').hidden=false;$('#sheet').scrollTop=0}
+function closeSheet(){$('#overlay').hidden=true}
+$('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();$('#present').hidden=true}});
+
+/* ---------- dex ---------- */
+function renderDex(){
+  const box=$('#dexShelves');box.innerHTML='';
+  [...ORDER,'milkyway'].forEach(t=>{
+    const list=OBJ.filter(o=>o.type===t),T=TYPES[t];
+    const got=list.filter(o=>S.found[o.id]||matesFor(o.id).length).length;
+    const sec=document.createElement('div');sec.className='shelf';
+    sec.innerHTML=`<div class="shelf-head"><span class="dot" style="background:${T.color}"></span><h2>${t==='milkyway'?'우리은하':T.name}</h2><span class="sub">${T.group} · 우리 모둠 ${got}/${list.length} 발견</span></div><div class="dex"></div>`;
+    const dex=sec.querySelector('.dex');
+    list.forEach(o=>{const f=S.found[o.id],mates=matesFor(o.id);
+      if(!f&&!mates.length){const e=document.createElement('div');e.className='dex-item empty';e.textContent='?';dex.appendChild(e);return}
+      const who=[f?'나':'',...mates.map(m=>m.num+'번')].filter(Boolean).join(', ');
+      const b=document.createElement('button');b.className='dex-item'+(f?'':' team');
+      b.innerHTML=`<canvas></canvas><div class="lbl">${o.name}${f&&f.nick?`<small>“${esc(f.nick)}”</small>`:''}<span class="by">${esc(who)} 관측</span></div>`;
+      b.onclick=()=>openMission(o);dex.appendChild(b);requestAnimationFrame(()=>draw(b.querySelector('canvas'),o,false))});
+    box.appendChild(sec)});
+
+}
+function renderNote(){
+  const n=Object.keys(S.found).length;
+  $('#noteLock').textContent=n<5?`천체를 5개 이상 발견하면 탐험 노트가 열려요. (지금 ${n}개) 탐사 미션 탭에서 구역마다 1곳씩 찾아보세요.`:'탐사에서 본 것을 과학자들의 분류와 비교해 보세요.';
+  $('#notes').innerHTML=n<5?'':`
+   <div class="note"><h3 style="color:var(--open)">성단</h3><p>별들이 모여 있는 집단</p>
+    <div class="tblwrap"><table><tr><th></th><th>산개 성단</th><th>구상 성단</th></tr>
+    <tr><th>별의 수</th><td>수십~수만 개</td><td>수만~수십만 개</td></tr>
+    <tr><th>모양</th><td>일정한 모양 없음</td><td>공 모양, 빽빽함</td></tr>
+    <tr><th>별의 색</th><td>파란색 (젊은 별)</td><td>붉은색 (늙은 별)</td></tr>
+    <tr><th>위치</th><td>주로 나선팔</td><td>중심부, 원반을 둘러싼 구형 공간</td></tr></table></div></div>
+   <div class="note"><h3 style="color:var(--emis)">성운</h3><p>가스와 먼지(성간 물질)가 모여 구름처럼 보이는 천체, 주로 나선팔에 있어요</p>
+    <div class="tblwrap"><table><tr><th></th><th>방출</th><th>반사</th><th>암흑</th></tr>
+    <tr><th>색</th><td>붉은색</td><td>파란색</td><td>검은색</td></tr>
+    <tr><th>까닭</th><td>뜨거운 별의 에너지를 받아 스스로 빛을 냄</td><td>주변 별빛을 반사</td><td>뒤에서 오는 별빛을 가림</td></tr></table></div></div>
+   <div class="note" style="grid-column:1/-1"><h3 style="color:var(--gold)">한 줄로 기억하기</h3><div class="mantra">
+    <div>성단은 <b>별 무리</b>, 성운은 <b>우주 구름</b></div>
+    <div>산개 성단은 젊고 파란 별들의 동네 모임, 구상 성단은 늙은 별들의 빽빽한 공</div>
+    <div>성운 색은 스스로 빛내면 빨강, 빛을 튕기면 파랑, 빛을 막으면 검정</div>
+    <div>우리은하는 중심부가 볼록한 원반, 위에서 보면 막대 구조와 나선팔 (지름 약 30000 pc)</div></div></div>`;
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- quiz ---------- */
+const QUIZ=[
+ {q:'여름철 은하수가 겨울철보다 두껍고 밝게 보이는 까닭은?',o:['여름 하늘이 더 맑아서','여름 밤에는 우리은하 중심 쪽을 보게 되어서','여름에 지구가 은하 중심에 가까워져서','여름에 별들이 더 밝아져서'],a:1,e:'지구가 공전하면서 밤하늘이 향하는 방향이 바뀌어요. 여름 밤에는 별이 많이 모인 은하 중심 쪽을 봐요.'},
+ {q:'우리은하를 옆에서 보면 어떤 모양일까?',o:['완전한 공 모양','중심부가 볼록한 원반 모양','가운데가 빈 고리 모양','길쭉한 막대 모양'],a:1,e:'옆에서 보면 중심부가 볼록한 원반, 위에서 보면 막대 구조와 나선팔이 있어요.'},
+ {q:'수만~수십만 개의 별이 공 모양으로 빽빽하게 모여 있는 것은?',o:['산개 성단','구상 성단','반사 성운','암흑 성운'],a:1,e:'구상 성단은 붉은색의 늙은 별이 많고 은하 중심부와 원반을 둘러싼 공간에 있어요.'},
+ {q:'말머리 성운이 검게 보이는 까닭은?',o:['스스로 검은빛을 내서','별빛을 반사해서','뒤에서 오는 별빛을 가려서','별이 모두 사라져서'],a:2,e:'암흑 성운은 가스와 먼지가 뒤쪽 빛을 가려서 검은 그림자처럼 보여요.'},
+ {q:'반사 성운이 파랗게 보이는 까닭은?',o:['주변 별빛을 반사해서','온도가 매우 낮아서','스스로 파란빛을 내서','물이 많아서'],a:0,e:'반사 성운은 스스로 빛을 내지 못하고 근처 별빛을 반사해요.'},
+ {q:'산개 성단은 성운과 함께 자주 보이지만, 구상 성단은 그렇지 않은 까닭은?',o:['구상 성단은 너무 어두워서','산개 성단과 성운은 주로 나선팔에, 구상 성단은 중심부와 원반 바깥 공간에 있어서','성운이 구상 성단을 피해 다녀서','구상 성단에는 별이 적어서'],a:1,e:'분포하는 장소가 달라요. 젊은 별이 태어나는 나선팔에는 성운과 산개 성단이 함께 있어요.'}
+];
+function renderQuiz(){
+  const box=$('#quizList');box.innerHTML='';
+  QUIZ.forEach((Q,i)=>{const pick=S.quiz[i];const d=document.createElement('div');d.className='qcard';
+    d.innerHTML=`<span class="num">Q${i+1}</span><h3>${Q.q}</h3><div class="opts">${Q.o.map((t,j)=>{
+      let c='opt';if(pick!==undefined){if(j===Q.a)c+=' right';else if(j===pick)c+=' wrong'}
+      return`<button class="${c}" data-j="${j}" ${pick!==undefined?'disabled':''}>${t}</button>`}).join('')}</div>
+      ${pick!==undefined?`<div class="expl">${pick===Q.a?'정답!':'아쉬워요.'} ${Q.e}</div>`:''}`;
+    d.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{S.quiz[i]=+b.dataset.j;save();renderQuiz();renderTop();
+      if(Object.keys(S.quiz).length===QUIZ.length){const c=QUIZ.filter((q,k)=>S.quiz[k]===q.a).length;send({kind:'quiz',id:'quiz',points:c,extra:{answers:{...S.quiz}}})}});
+    box.appendChild(d)});
+}
+$('#quizReset').onclick=()=>{S.quiz={};save();renderQuiz();renderTop()};
+
+/* ---------- present ---------- */
+/* 발표 화면: 여러 장을 넘기는 슬라이드 */
+let PS={slides:[],i:0};
+function buildSlides(){
+  const n=Object.keys(S.found).filter(id=>id!=='mw').length;
+  const qc=QUIZ.filter((q,i)=>S.quiz[i]===q.a).length;
+  const teamHas=o=>S.found[o.id]||matesFor(o.id).length;
+  const list=[...ORDER.flatMap(t=>OBJ.filter(o=>o.type===t&&teamHas(o))),...OBJ.filter(o=>o.type==='milkyway'&&teamHas(o))];
+  const byNum={};teamRows.forEach(r=>{if(String(r.num)!==String(S.num)&&OBJ.some(o=>o.id===r.id&&o.type!=='milkyway'))byNum[r.num]=(byNum[r.num]||0)+1});if(S.num)byNum[S.num]=n;
+  const teamGot=OBJ.filter(o=>o.type!=='milkyway'&&teamHas(o)).length,total=OBJ.filter(o=>o.type!=='milkyway').length;
+  const counts=ORDER.map(t=>[t,OBJ.filter(o=>o.type===t&&teamHas(o)).length]).filter(x=>x[1]);
+  const slides=[];
+  slides.push({html:`<div class="tname">${esc(teamLabel())}</div>
+    <div class="bigscore">우리 모둠이 찾은 천체 ${teamGot} / ${total}</div>
+    <div class="badges">${Object.keys(byNum).sort((a,b)=>a-b).map(k=>`<span class="chip" style="font-size:15px;padding:3px 12px;${k===String(S.num)?'border-color:var(--gold);color:var(--gold)':''}">${esc(String(k))}번 ${byNum[k]}개</span>`).join('')}</div>
+    <div class="badges">${counts.map(([t,c])=>`<span class="chip type" style="background:${TYPES[t].color};font-size:15px;padding:3px 12px">${TYPES[t].name} ${c}</span>`).join('')}</div>
+    ${S.num?`<div style="color:var(--muted)">발표: ${esc(S.num)}번 · ★ ${score()}${Object.keys(S.quiz).length?` · 퀴즈 ${qc}/${QUIZ.length}`:''}</div>`:''}
+    <div class="pnote">${list.length?'→ 다음을 눌러 우리 모둠이 찾은 천체를 하나씩 소개해요':'아직 모둠이 찾은 천체가 없어요'}</div>`});
+  list.forEach(o=>{
+    const T=TYPES[o.type],mine=S.found[o.id];
+    const finders=[...(mine?[{num:S.num,memo:mine.memo,me:true}]:[]),...matesFor(o.id).map(m=>({num:m.num,memo:m.memo}))];
+    slides.push({obj:o,html:`<div class="pkind" style="color:${T.color}">${o.type==='milkyway'?'우리은하':T.group+' · '+T.name}</div>
+      <div class="fav"><canvas></canvas></div>
+      <div class="favname">${mine&&mine.nick?`“${esc(mine.nick)}”`:o.name}</div>
+      <div class="favreal">${mine&&mine.nick?o.name+' · ':''}${o.code} · ${o.con}</div>
+      <div class="pmemos">${finders.map(f=>`<div class="pmemo"><b>${f.me?(S.num?esc(String(f.num))+'번 (나)':'나'):esc(String(f.num))+'번'}</b> ${esc(String(f.memo||''))||'<span style="color:var(--muted)">메모 없음</span>'}</div>`).join('')}</div>
+      <div class="pfact">${T.desc}</div>`});
+  });
+  slides.push({html:`<div class="tname" style="font-size:clamp(32px,6vw,56px)">우리 모둠 탐사 정리</div>
+    <div class="psum">${ORDER.map(t=>{const all=OBJ.filter(o=>o.type===t),got=all.filter(teamHas);return`<div class="psrow"><span class="chip type" style="background:${TYPES[t].color};font-size:15px;padding:3px 12px">${TYPES[t].name}</span><span>${got.map(o=>o.name).join(', ')||'<span style="color:var(--muted)">아직 없음</span>'}</span>${got.length<all.length?`<span class="pmiss">못 찾은 곳 ${all.length-got.length}</span>`:''}</div>`}).join('')}</div>
+    <div class="pnote">성단은 별 무리, 성운은 우주 구름!</div>`});
+  return slides;
+}
+function showSlide(k){
+  const p=$('#present');PS.i=Math.max(0,Math.min(PS.slides.length-1,k));const sl=PS.slides[PS.i];
+  p.innerHTML=`<div class="pslide">${sl.html}</div>
+    <div class="pnav"><button class="tool" id="pPrev" ${PS.i===0?'disabled':''}>← 이전</button><span class="pcount">${PS.i+1} / ${PS.slides.length}</span><button class="tool" id="pNext" ${PS.i===PS.slides.length-1?'disabled':''}>다음 →</button><button class="tool" id="closePresent">닫기</button></div>`;
+  if(sl.obj)requestAnimationFrame(()=>draw(p.querySelector('canvas'),sl.obj,false));
+  $('#pPrev').onclick=()=>showSlide(PS.i-1);$('#pNext').onclick=()=>showSlide(PS.i+1);$('#closePresent').onclick=()=>p.hidden=true;
+}
+$('#presentBtn').onclick=async()=>{
+  const p=$('#present');p.hidden=false;PS.slides=buildSlides();showSlide(0);
+  if(GAS&&S.num){await loadTeam();PS.slides=buildSlides();showSlide(PS.i)}
+};
+document.addEventListener('keydown',e=>{if($('#present').hidden)return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();showSlide(PS.i+1)}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();showSlide(PS.i-1)}});
+(()=>{let x0=null;const p=$('#present');p.addEventListener('pointerdown',e=>{x0=e.clientX});p.addEventListener('pointerup',e=>{if(x0===null)return;const dx=e.clientX-x0;x0=null;if(Math.abs(dx)>60)showSlide(PS.i+(dx<0?1:-1))})})();
+
+
+/* ================= 우리은하 탭 ================= */
+const PC=15000; // 그림 반지름 1 = 15000 pc (지름 30000 pc)
+const GAL=(()=>{ // 결정적 난수로 별 입자 생성 (단위: 반지름 1)
+  const r=rng('milkyway-model');const gg=()=>(r()+r()+r()+r()-2)/1.15;
+  const pts=[];const add=(x,y,z,c,s)=>pts.push({x,y,z,c,s});
+  const barA=0.45;
+  for(let i=0;i<1300;i++){const R=Math.abs(gg())*0.13;const a=r()*6.283,b=Math.acos(2*r()-1);add(R*Math.sin(b)*Math.cos(a),R*Math.sin(b)*Math.sin(a),R*Math.cos(b)*0.75,['#ffe2b0','#ffd08a','#fff2d8'][r()*3|0],0.9)}
+  for(let i=0;i<700;i++){const u=(r()-.5)*0.62,v=gg()*0.045;add(u*Math.cos(barA)-v*Math.sin(barA),u*Math.sin(barA)+v*Math.cos(barA),gg()*0.025,['#ffd9a0','#ffe9c8'][r()*2|0],0.8)}
+  const arm=(th0,n,bright)=>{for(let i=0;i<n;i++){const t=r()*4.3;const R=0.3*Math.exp(0.28*t);const a=th0+t;const sc=gg()*0.06*(0.5+R);
+    add(Math.cos(a)*R-Math.sin(a)*sc,Math.sin(a)*R+Math.cos(a)*sc,gg()*0.014,bright&&r()<.12?'#ff8fb0':['#cfe0ff','#9fc2ff','#ffffff'][r()*3|0],bright?0.75:0.6)}};
+  arm(barA,3000,true);arm(barA+Math.PI,3000,true);arm(barA+Math.PI/2,1500,false);arm(barA+Math.PI*1.5,1500,false);
+  for(let i=0;i<1600;i++){const R=-Math.log(1-r()*0.95)*0.3;const a=r()*6.283;add(Math.cos(a)*R,Math.sin(a)*R,gg()*0.02,'#b9c3e6',0.5)}
+  // 태양계: 작은 나선팔 위, 중심에서 8500 pc
+  const tS=Math.log((8500/PC)/0.3)/0.28,aS=barA+Math.PI/2+tS;let sun={x:Math.cos(aS)*8500/PC,y:Math.sin(aS)*8500/PC,z:0};
+  // 그림 10처럼 태양계가 중심의 왼쪽에 오도록 전체를 돌림
+  const rot=Math.PI-Math.atan2(sun.y,sun.x),cr=Math.cos(rot),sr=Math.sin(rot);
+  pts.forEach(q=>{const x=q.x*cr-q.y*sr,y=q.x*sr+q.y*cr;q.x=x;q.y=y});
+  sun={x:-8500/PC,y:0,z:0};
+  const glob=[];for(let i=0;i<38;i++){const R=0.12+Math.abs(gg())*0.5;const a=r()*6.283,b=Math.acos(2*r()-1);glob.push({x:R*Math.sin(b)*Math.cos(a),y:R*Math.sin(b)*Math.sin(a),z:R*Math.cos(b)})}
+  const open=[];for(let i=0;i<26;i++){const q=pts[2500+(r()*5000|0)];open.push({x:q.x,y:q.y,z:q.z})}
+  return{pts,sun,glob,open,barA};
+})();
+function sizeCanvas(cv,ratio){const dpr=Math.min(2,window.devicePixelRatio||1);const w=cv.clientWidth||600,h=Math.round(w*ratio);cv.style.height=h+'px';cv.width=w*dpr;cv.height=h*dpr;const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);return{c,w,h}}
+function dot(c,x,y,rad,col,a){c.globalAlpha=a;c.fillStyle=col;c.beginPath();c.arc(x,y,rad,0,7);c.fill();c.globalAlpha=1}
+function label(c,x,y,t,col,align){c.font='15px "Do Hyeon",sans-serif';c.textAlign=align||'center';c.textBaseline='middle';c.lineWidth=4;c.strokeStyle='rgba(3,4,10,.85)';c.strokeText(t,x,y);c.fillStyle=col||'#ebe9f7';c.fillText(t,x,y)}
+/* tilt: 0 = 위에서, 90 = 옆에서 */
+function drawGalaxy(cv,o){
+  const {c,w,h}=sizeCanvas(cv,o.ratio||0.75);c.fillStyle='#03040a';c.fillRect(0,0,w,h);
+  const sc=Math.min(w*0.46,h*(o.tilt>60?0.9:0.46)),cx=w/2,cy=h/2;const ph=(o.tilt||0)*Math.PI/180,cp=Math.cos(ph),sp=Math.sin(ph);
+  const P=q=>[cx+q.x*sc,cy+(q.y*cp-q.z*sp)*sc];
+  c.globalCompositeOperation='lighter';
+  const al=0.5*(1-0.55*sp);GAL.pts.forEach(q=>{const [x,y]=P(q);dot(c,x,y,q.s*Math.max(0.7,sc/260),q.c,al)});
+  // 중심부 빛
+  const g=c.createRadialGradient(cx,cy,0,cx,cy,sc*0.18);g.addColorStop(0,'rgba(255,220,160,.55)');g.addColorStop(1,'rgba(255,220,160,0)');c.fillStyle=g;c.beginPath();c.ellipse(cx,cy,sc*0.18,sc*0.18*Math.max(cp,0.55),0,0,7);c.fill();
+  c.globalCompositeOperation='source-over';
+  if(o.glob)GAL.glob.forEach(q=>{const [x,y]=P(q);dot(c,x,y,3.2,'#ffb46e',1);c.strokeStyle='rgba(255,180,110,.6)';c.beginPath();c.arc(x,y,6,0,7);c.stroke()});
+  if(o.open)GAL.open.forEach(q=>{const [x,y]=P(q);c.strokeStyle='#7fb1ff';c.lineWidth=1.5;c.beginPath();c.arc(x,y,5,0,7);c.stroke()});
+  return{sc,cx,cy,P};
+}
+function sunMark(c,x,y){c.fillStyle='#f2c14e';c.strokeStyle='#03040a';c.lineWidth=2;c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?4:9;c.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}c.closePath();c.stroke();c.fill()}
+
+const GSTEPS=[
+ {id:'g1',title:'위에서 본 우리은하',lead:'우리은하를 위에서 내려다본 모형이에요. <b>태양계는 어디쯤 있을까?</b> 지도에서 직접 눌러 보세요.',
+  qs:[{q:'우리은하의 지름은 약 얼마일까?',o:['3000 pc','30000 pc','300000 pc'],a:1,e:'우리은하의 지름은 약 30000 pc예요. 1 pc는 약 3.26광년이니 빛으로도 약 10만 년이 걸려요.'},
+      {q:'위에서 본 우리은하의 모습으로 옳은 것은?',o:['중심부에 막대 구조가 있고, 막대 끝에 소용돌이 모양의 나선팔이 있다','완전한 공 모양이다','가운데가 비어 있는 고리 모양이다'],a:0,e:'중심부의 막대 구조와 소용돌이 모양의 나선팔이 우리은하의 특징이에요.'}]},
+ {id:'g2',title:'옆에서 본 우리은하',lead:'슬라이더로 우리은하를 <b>옆으로 기울여 보세요.</b> 성단 표시를 켜서 구상 성단과 산개 성단이 어디에 있는지도 찾아보세요.',
+  qs:[{q:'옆에서 본 우리은하의 모습은?',o:['중심부가 볼록한 원반 모양','납작한 막대 모양','공 모양'],a:0,e:'옆에서 보면 중심부가 볼록한 원반 모양이에요.'},
+      {q:'구상 성단(주황 점)은 주로 어디에 있나요?',o:['나선팔','은하 중심부와 원반을 둘러싼 구형 공간','태양계 바로 옆'],a:1,e:'구상 성단은 은하 중심부와 원반을 둘러싼 둥근 공간에 많이 있어요.'},
+      {q:'산개 성단(파란 고리)은 주로 어디에 있나요?',o:['나선팔(원반)','원반 바깥 구형 공간'],a:0,e:'산개 성단은 젊은 별들의 무리라서 별이 태어나는 나선팔에 많아요.'}]},
+ {id:'g3',title:'은하수는 왜 띠 모양일까?',lead:'옆에서 본 우리은하에서 태양계(★)에 서서 <b>바라보는 방향을 돌려 보세요.</b> 방향마다 보이는 별의 수가 어떻게 달라질까?',
+  qs:[{q:'별이 가장 많이 보인 방향은?',o:['은하 중심 방향','원반에 수직인 방향(위, 아래)','어느 방향이나 같다'],a:0,e:'원반 면을 따라, 특히 중심 쪽을 보면 별이 엄청나게 겹쳐 보여요.'},
+      {q:'원반에 수직인 방향(위, 아래)을 보면?',o:['별이 적어서 은하수가 거의 보이지 않는다','별이 가장 많이 보인다'],a:0,e:'원반이 납작해서 위아래로는 별이 적어요.'},
+      {q:'은하수가 띠 모양으로 보이는 까닭은?',o:['우리은하의 별들이 대부분 원반 면에 분포하고, 우리는 그 원반 안에서 보기 때문','은하수가 실제로 길쭉한 띠 모양의 천체이기 때문','지구의 대기가 빛을 길게 퍼뜨리기 때문'],a:0,e:'납작한 원반 안에서 원반 면을 따라 보면 별들이 하늘을 가로지르는 띠처럼 보여요.'}]},
+ {id:'g4',title:'여름과 겨울의 은하수',lead:'달을 바꾸며 <b>지구가 공전하는 위치</b>와 <b>밤하늘이 향하는 방향</b>을 확인해 보세요. 밤에는 태양 반대쪽 하늘이 보여요.',
+  qs:[{q:'여름철(7월) 밤에 바라보는 방향은?',o:['A: 은하 중심 쪽 (궁수자리)','B: 은하 바깥쪽 (오리온자리)'],a:0,e:'7월 밤에는 밤하늘이 은하 중심(궁수자리) 쪽을 향해요.'},
+      {q:'여름철 은하수가 겨울철보다 두껍고 밝게 보이는 까닭은?',o:['별이 많이 모인 은하 중심 방향을 보기 때문','여름에 지구가 은하 중심에 가까워지기 때문','여름 하늘이 더 맑기 때문'],a:0,e:'지구 공전 궤도는 우리은하에 비해 아주 작아서 중심에 가까워지는 게 아니에요. 바라보는 방향이 달라지는 거예요.'},
+      {q:'계절마다 밤하늘에 보이는 방향이 달라지는 까닭은?',o:['지구가 태양 주위를 공전하고, 밤에는 태양 반대쪽 하늘을 보기 때문','지구가 은하 중심 주위를 1년에 한 바퀴 돌기 때문'],a:0,e:'계절별 별자리가 달라지는 것과 같은 원리예요.'}]}
+];
+let gAns={},gTap=null,gTilt=0,gGlob=false,gOpen=false,gLook=0,gMonth=7,gOpened={};
+function gDotsOnly(){
+  const n=GSTEPS.filter(s=>S.galaxy[s.id]).length;$('#nGalaxy').textContent=`${n}/4`;
+  const d=$('#gDots');if(d)d.innerHTML=GSTEPS.map((s,i)=>`<span class="zdot${S.galaxy[s.id]?' done':''}">${i+1}단계${S.galaxy[s.id]?' ✓':''}</span>`).join('');
+}
+function renderGalaxy(){
+  gDotsOnly();
+  const box=$('#gSteps');box.innerHTML='';
+  GSTEPS.forEach((st,i)=>{
+    const done=S.galaxy[st.id];const el=document.createElement('div');el.className='gstep'+(done?' done':'');el.id='step-'+st.id;
+    el.innerHTML=`<div class="ghead"><span class="no">${i+1}단계</span><h3>${st.title}</h3>${done?`<span class="ok">완료 ${'★'.repeat(done.points)}${'☆'.repeat(3-done.points)}</span>`:''}</div>
+      <p class="lead">${st.lead}</p><div class="gbody"></div><div class="gq"></div><div class="gmsg" hidden></div><div class="gbtns"></div>`;
+    box.appendChild(el);
+    ({g1:body1,g2:body2,g3:body3,g4:body4})[st.id](el.querySelector('.gbody'),el);
+    renderGQs(st,el);
+  });
+  const mw=OBJ.find(o=>o.id==='mw');const f=S.found.mw;
+  const card=document.createElement('div');card.className='gstep';
+  card.innerHTML=`<div class="ghead"><span class="no">보너스</span><h3>스텔라리움으로 직접 확인하기</h3>${f?`<span class="ok">완료 ${'★'.repeat(f.points)}</span>`:''}</div>
+    <p class="lead">7월 밤과 1월 밤의 은하수를 스텔라리움에서 직접 비교해 보세요. 4단계에서 알아낸 것이 진짜인지 확인하는 미션이에요.</p>
+    <div class="gbtns"><button class="cta" id="mwGo">${f?'관측 기록 보기':'미션 시작'}</button></div>`;
+  box.appendChild(card);$('#mwGo').onclick=()=>openMission(mw);
+}
+function renderGQs(st,el){
+  const done=S.galaxy[st.id];const q=el.querySelector('.gq');const a=gAns[st.id]||(gAns[st.id]={});
+  const checked=!!(done&&done.answers);
+  q.innerHTML=st.qs.map((Q,k)=>{const pick=checked?done.answers[k]:a[k];
+    return`<h4>Q${k+1}. ${Q.q}</h4><div class="opts">${Q.o.map((t,j)=>{let cl='opt';
+      if(checked){if(j===Q.a)cl+=' right';else if(j===pick)cl+=' wrong'}
+      return`<button class="${cl}" data-k="${k}" data-j="${j}" aria-pressed="${!checked&&pick===j}" ${checked?'disabled':''}>${t}</button>`}).join('')}</div>
+      ${checked?`<div class="why">${pick===Q.a?'정답!':'아쉬워요.'} ${Q.e}</div>`:''}`}).join('');
+  q.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{a[+b.dataset.k]=+b.dataset.j;renderGQs(st,el)});
+  const btns=el.querySelector('.gbtns');
+  if(done&&done.restored&&!done.answers){btns.innerHTML='<span class="why" style="color:var(--muted)">저장된 기록을 불러왔어요.</span> <button class="ghost">다시 풀기</button>';btns.querySelector('button').onclick=()=>{delete S.galaxy[st.id];gAns[st.id]={};save();renderGalaxy()};return}
+  if(checked){btns.innerHTML='<button class="ghost">다시 풀기</button>';btns.querySelector('button').onclick=()=>{delete S.galaxy[st.id];gAns[st.id]={};if(st.id==='g1')gTap=null;save();renderGalaxy();document.getElementById('step-'+st.id).scrollIntoView({block:'start'})};return}
+  const need=st.qs.every((Q,k)=>a[k]!==undefined)&&(st.id!=='g1'||gTap);
+  btns.innerHTML=`<button class="cta"${need?'':' disabled'}>확인하기</button>${!need&&st.id==='g1'&&!gTap?'<span class="why" style="color:var(--muted)">지도에서 태양계 위치를 먼저 눌러 주세요.</span>':''}`;
+  btns.querySelector('.cta').onclick=()=>{
+    const ans=st.qs.map((Q,k)=>a[k]);let pts=st.qs.filter((Q,k)=>a[k]===Q.a).length;
+    if(st.id==='g1'){pts=(gTap.ok?1:0)+pts;}
+    pts=Math.min(3,pts);
+    S.galaxy[st.id]={points:pts,answers:ans};save();
+    send({kind:'mission',id:st.id,points:pts,guess:'',memo:'',secs:Math.round((Date.now()-(gOpened[st.id]||Date.now()))/1000),extra:{answers:ans,tap:st.id==='g1'?Math.round(gTap.pc):undefined}});
+    renderGalaxy();renderTop();document.getElementById('step-'+st.id).scrollIntoView({block:'start'});
+  };
+}
+/* 1단계: 위에서 본 모습 + 태양계 찾기 */
+function body1(b,el){
+  gOpened.g1=gOpened.g1||Date.now();
+  b.innerHTML=`<canvas class="gcv" id="cv1"></canvas><div class="gctl"><button class="tog" id="lab1" aria-pressed="false">이름표 보기</button></div>`;
+  const cv=$('#cv1');const done=S.galaxy.g1;let labels=!!done;
+  const draw=()=>{const G=drawGalaxy(cv,{tilt:0,ratio:0.8});const c=cv.getContext('2d');
+    const showTruth=labels||(gTap&&gTap.shown);
+    if(gTap){c.strokeStyle='#ff6f86';c.lineWidth=2.5;c.beginPath();c.arc(G.cx+gTap.x*G.sc,G.cy+gTap.y*G.sc,9,0,7);c.stroke();label(c,G.cx+gTap.x*G.sc,G.cy+gTap.y*G.sc-20,'내가 고른 곳','#ff9fb0')}
+    if(showTruth){
+      c.setLineDash([4,5]);c.strokeStyle='rgba(242,193,78,.55)';c.lineWidth=1.2;c.beginPath();c.arc(G.cx,G.cy,8500/PC*G.sc,0,7);c.stroke();c.setLineDash([]);
+      const [sx,sy]=G.P(GAL.sun);sunMark(c,sx,sy);label(c,sx,sy+22,'태양계','#f2c14e');
+      c.strokeStyle='#f2c14e';c.lineWidth=1.5;c.beginPath();c.moveTo(sx+12,sy);c.lineTo(G.cx-6,G.cy);c.stroke();label(c,(sx+G.cx)/2,sy+16,'8500 pc','#f2c14e');
+    }
+    if(labels){
+      label(c,G.cx,G.cy+30,'은하 중심','#ffe2b0');
+      const bx=Math.cos(GAL.barA+Math.PI)*0.0,by=0;label(c,G.cx+G.sc*0.2,G.cy-G.sc*0.25,'막대 구조','#ffe2b0');
+      label(c,G.cx+G.sc*0.62,G.cy+G.sc*0.55,'나선팔','#9fc2ff');
+      const y0=cv.clientHeight-16;c.strokeStyle='#ebe9f7';c.lineWidth=1.2;c.beginPath();c.moveTo(G.cx-G.sc,y0);c.lineTo(G.cx+G.sc,y0);c.moveTo(G.cx-G.sc,y0-5);c.lineTo(G.cx-G.sc,y0+5);c.moveTo(G.cx+G.sc,y0-5);c.lineTo(G.cx+G.sc,y0+5);c.stroke();label(c,G.cx,y0-10,'지름 약 30000 pc');
+    }
+    return G};
+  let G=draw();
+  cv.onclick=e=>{if(S.galaxy.g1)return;const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left-G.cx)/G.sc,y=(e.clientY-rc.top-G.cy)/G.sc;const pc=Math.hypot(x,y)*PC;
+    gTap={x,y,pc,ok:pc>=6000&&pc<=11000,shown:true};G=draw();
+    const m=el.querySelector('.gmsg');m.hidden=false;
+    const d=Math.round(pc/100)*100;
+    if(gTap.ok){m.className='gmsg good';m.textContent=`정답에 가까워요! 고른 곳은 중심에서 약 ${d.toLocaleString()} pc. 실제 태양계는 은하 중심에서 약 8500 pc 떨어진 나선팔에 있어요.`}
+    else if(pc<6000){m.className='gmsg miss';m.textContent=`고른 곳은 중심에서 약 ${d.toLocaleString()} pc. 태양계는 생각보다 중심에서 멀어요. 실제로는 약 8500 pc 떨어진 나선팔에 있어요 (★ 표시).`}
+    else{m.className='gmsg miss';m.textContent=`고른 곳은 중심에서 약 ${d.toLocaleString()} pc. 태양계는 그보다 안쪽, 중심에서 약 8500 pc 떨어진 나선팔에 있어요 (★ 표시).`}
+    renderGQs(GSTEPS[0],el)};
+  const lb=$('#lab1');lb.setAttribute('aria-pressed',labels);lb.onclick=()=>{labels=!labels;lb.setAttribute('aria-pressed',labels);G=draw()};
+  if(!done&&!gTap){const m=el.querySelector('.gmsg');m.hidden=false;m.className='gmsg';m.textContent='지도를 눌러 태양계가 있을 것 같은 곳을 골라 보세요.'}
+}
+/* 2단계: 기울이기 */
+function body2(b){
+  gOpened.g2=gOpened.g2||Date.now();
+  b.innerHTML=`<canvas class="gcv" id="cv2"></canvas>
+   <div class="gctl"><span>위에서</span><input type="range" id="tilt" min="0" max="90" value="${gTilt}" aria-label="기울기"><span>옆에서</span><span class="val" id="tiltV"></span></div>
+   <div class="gctl"><button class="tog" id="tGlob" aria-pressed="${gGlob}">구상 성단 보기</button><button class="tog" id="tOpen" aria-pressed="${gOpen}">산개 성단 보기</button></div>`;
+  const cv=$('#cv2');
+  const draw=()=>{const G=drawGalaxy(cv,{tilt:gTilt,ratio:0.62,glob:gGlob,open:gOpen});const c=cv.getContext('2d');
+    const [sx,sy]=G.P(GAL.sun);sunMark(c,sx,sy);
+    if(gTilt>=80){label(c,G.cx,G.cy-G.sc*0.2,'볼록한 중심부','#ffe2b0');label(c,G.cx+G.sc*0.7,G.cy+22,'원반','#9fc2ff')}
+    $('#tiltV').textContent=gTilt<10?'위에서 본 모습':gTilt>=80?'옆에서 본 모습':'기울이는 중'};
+  draw();
+  $('#tilt').oninput=e=>{gTilt=+e.target.value;draw()};
+  $('#tGlob').onclick=e=>{gGlob=!gGlob;e.target.setAttribute('aria-pressed',gGlob);draw()};
+  $('#tOpen').onclick=e=>{gOpen=!gOpen;e.target.setAttribute('aria-pressed',gOpen);draw()};
+}
+/* 3단계: 시선 방향과 보이는 별의 수 */
+function body3(b){
+  gOpened.g3=gOpened.g3||Date.now();
+  b.innerHTML=`<div class="gpair"><div><canvas class="gcv" id="cv3"></canvas><div class="cap">옆에서 본 우리은하와 바라보는 방향</div></div><div><canvas class="gcv" id="cv3b"></canvas><div class="cap">그 방향의 밤하늘</div></div></div>
+   <div class="gctl"><span>바라보는 방향</span><input type="range" id="look" min="0" max="359" value="${gLook}" aria-label="바라보는 방향"><span class="val" id="lookV"></span></div>
+   <div class="gctl" style="display:grid;gap:4px"><span>보이는 별의 양</span><div class="meter"><i id="lookM"></i></div></div>`;
+  const cv=$('#cv3'),cv2=$('#cv3b');
+  // 옆에서 본 좌표 (x, z)만 사용
+  const side=GAL.pts.map(q=>({x:q.x,z:q.z}));const sun=GAL.sun;
+  const count=a=>{const cx=Math.cos(a),cz=-Math.sin(a);let n=0;side.forEach(q=>{const dx=q.x-sun.x,dz=q.z-sun.z;const d=Math.hypot(dx,dz);if(d<0.02)return;if((dx*cx+dz*cz)/d>Math.cos(0.09))n++});return n};
+  const maxN=count(0);
+  const draw=()=>{
+    const G=drawGalaxy(cv,{tilt:90,ratio:0.62});const c=cv.getContext('2d');const [sx,sy]=G.P(sun);
+    const a=gLook*Math.PI/180;const L=G.sc*2.2;
+    c.fillStyle='rgba(242,193,78,.18)';c.beginPath();c.moveTo(sx,sy);c.lineTo(sx+Math.cos(a-0.09)*L,sy-Math.sin(a-0.09)*L);c.lineTo(sx+Math.cos(a+0.09)*L,sy-Math.sin(a+0.09)*L);c.closePath();c.fill();
+    c.strokeStyle='#f2c14e';c.lineWidth=2;c.beginPath();c.moveTo(sx,sy);c.lineTo(sx+Math.cos(a)*G.sc*0.5,sy-Math.sin(a)*G.sc*0.5);c.stroke();sunMark(c,sx,sy);
+    const n=count(a),f=Math.min(1,n/maxN);
+    const dir=gLook<20||gLook>340?'은하 중심 쪽':gLook>160&&gLook<200?'은하 바깥쪽':(gLook>60&&gLook<120)||(gLook>240&&gLook<300)?'원반에 수직인 쪽':'비스듬히';
+    $('#lookV').textContent=dir;$('#lookM').style.width=(4+f*96)+'%';
+    // 밤하늘 그림
+    const S2=sizeCanvas(cv2,0.62),c2=S2.c;c2.fillStyle='#03040a';c2.fillRect(0,0,S2.w,S2.h);const rr=rng('sky'+gLook);
+    const N=Math.round(30+f*1400);c2.globalCompositeOperation='lighter';
+    for(let i=0;i<N;i++)dot(c2,rr()*S2.w,rr()*S2.h,rr()*1.1+0.3,f>0.5&&rr()<.3?'#ffe2b0':'#dfe6ff',0.35+rr()*0.5);
+    if(f>0.25){const gr=c2.createLinearGradient(0,0,S2.w,S2.h);gr.addColorStop(0,`rgba(255,220,170,${f*0.12})`);gr.addColorStop(1,`rgba(160,180,255,${f*0.08})`);c2.fillStyle=gr;c2.fillRect(0,0,S2.w,S2.h)}
+    c2.globalCompositeOperation='source-over';
+  };
+  draw();$('#look').oninput=e=>{gLook=+e.target.value;draw()};
+}
+/* 4단계: 계절과 밤하늘의 방향 */
+function body4(b){
+  gOpened.g4=gOpened.g4||Date.now();
+  b.innerHTML=`<div class="gpair"><div><canvas class="gcv" id="cv4"></canvas><div class="cap">태양 주위를 도는 지구 (크기는 실제 비율이 아니에요)</div></div><div><canvas class="gcv" id="cv4b"></canvas><div class="cap">그날 밤 보이는 은하수</div></div></div>
+   <div class="gctl"><span>달</span><input type="range" id="mon" min="1" max="12" value="${gMonth}" aria-label="달"><span class="val" id="monV"></span></div>`;
+  const cv=$('#cv4'),cv2=$('#cv4b');
+  const draw=()=>{
+    const {c,w,h}=sizeCanvas(cv,0.62);c.fillStyle='#03040a';c.fillRect(0,0,w,h);
+    const cx=w/2,cy=h/2,R=Math.min(w*0.25,h*0.34);
+    // 방향 표시
+    label(c,w-8,20,'A: 은하 중심 쪽 →','#ffe2b0','right');label(c,w-8,40,'(궁수자리)','#ffe2b0','right');label(c,8,h-38,'← B: 은하 바깥쪽','#9fc2ff','left');label(c,8,h-18,'(오리온자리)','#9fc2ff','left');
+    c.strokeStyle='rgba(235,233,247,.35)';c.setLineDash([3,4]);c.beginPath();c.arc(cx,cy,R,0,7);c.stroke();c.setLineDash([]);
+    const sg=c.createRadialGradient(cx,cy,0,cx,cy,22);sg.addColorStop(0,'#fff3c4');sg.addColorStop(1,'rgba(255,200,80,0)');c.fillStyle=sg;c.beginPath();c.arc(cx,cy,22,0,7);c.fill();label(c,cx,cy+28,'태양','#f2c14e');
+    const th=(gMonth-7)*Math.PI/6;const ex=cx+Math.cos(th)*R,ey=cy-Math.sin(th)*R;
+    // 지구: 낮(태양 쪽) 밝게, 밤 어둡게
+    c.fillStyle='#5aa9ff';c.beginPath();c.arc(ex,ey,12,0,7);c.fill();
+    c.fillStyle='#0b1530';c.beginPath();c.arc(ex,ey,12,-th-Math.PI/2,-th+Math.PI/2);c.closePath();c.fill();c.strokeStyle='#5aa9ff';c.lineWidth=1;c.beginPath();c.arc(ex,ey,12,0,7);c.stroke();
+    // 밤하늘 방향 화살표 (태양 반대쪽)
+    c.strokeStyle='#f2c14e';c.lineWidth=2.5;const ax=ex+Math.cos(th)*R*0.75,ay=ey-Math.sin(th)*R*0.75;c.beginPath();c.moveTo(ex+Math.cos(th)*12,ey-Math.sin(th)*12);c.lineTo(ax,ay);c.stroke();
+    c.fillStyle='#f2c14e';c.beginPath();c.moveTo(ax+Math.cos(th)*8,ay-Math.sin(th)*8);c.lineTo(ax+Math.cos(th+2.5)*8,ay-Math.sin(th+2.5)*8);c.lineTo(ax+Math.cos(th-2.5)*8,ay-Math.sin(th-2.5)*8);c.fill();
+    label(c,ex,ey+(Math.sin(th)>0?-24:26),'지구 ('+gMonth+'월)');label(c,ax+Math.cos(th)*4,ay-Math.sin(th)*4+(Math.abs(Math.sin(th))<0.5?-14:0)+(Math.sin(th)>=0.5?-14:Math.sin(th)<=-0.5?14:0),'밤하늘','#f2c14e');
+    const f=Math.cos(th);const k=(f+1)/2; // 1: 중심 쪽, 0: 바깥쪽
+    $('#monV').textContent=`${gMonth}월 밤 · ${k>0.75?'A 쪽(은하 중심)을 봐요':k<0.25?'B 쪽(은하 바깥)을 봐요':'A와 B 사이를 봐요'}`;
+    // 밤하늘 은하수
+    const S2=sizeCanvas(cv2,0.62),c2=S2.c;c2.fillStyle='#03040a';c2.fillRect(0,0,S2.w,S2.h);const rr=rng('band');
+    for(let i=0;i<160;i++)dot(c2,rr()*S2.w,rr()*S2.h,rr()*0.9+0.3,'#dfe6ff',0.5);
+    c2.save();c2.translate(S2.w/2,S2.h/2);c2.rotate(-0.5);c2.globalCompositeOperation='lighter';
+    const thick=S2.h*(0.07+k*0.2),bright=0.25+k*0.75;
+    for(let i=0;i<Math.round(500+k*2200);i++){const x=(rr()-.5)*S2.w*1.5,y=((rr()+rr()+rr()-1.5)/1.5)*thick;dot(c2,x,y,rr()*1+0.3,k>0.6&&rr()<.35?'#ffe2b0':'#e8ecff',bright*(0.3+rr()*0.5))}
+    const gr=c2.createLinearGradient(0,-thick,0,thick);gr.addColorStop(0,'rgba(200,190,255,0)');gr.addColorStop(.5,`rgba(${k>0.6?'255,215,170':'200,205,255'},${0.08+k*0.22})`);gr.addColorStop(1,'rgba(200,190,255,0)');c2.fillStyle=gr;c2.fillRect(-S2.w,-thick,S2.w*2,thick*2);
+    c2.restore();c2.globalCompositeOperation='source-over';
+    label(c2,S2.w/2,S2.h-16,k>0.75?'두껍고 밝은 은하수':k<0.25?'가늘고 희미한 은하수':'중간 정도',k>0.6?'#ffe2b0':'#c9d2ff');
+  };
+  draw();$('#mon').oninput=e=>{gMonth=+e.target.value;draw()};
+}
+
+/* ---------- misc ---------- */
+$('#clsSel').innerHTML=CLASSES.map(c=>`<option value="${esc(c)}">${esc(c)}반</option>`).join('');
+$('#teamSel').innerHTML=Array.from({length:NTEAMS},(_,i)=>`<option value="${i+1}">${i+1}모둠</option>`).join('');
+$('#numSel').innerHTML='<option value="">선택</option>'+Array.from({length:NSTU},(_,i)=>`<option value="${i+1}">${i+1}번</option>`).join('');
+if(!CLASSES.includes(S.cls))S.cls=CLASSES[0];
+$('#clsSel').value=S.cls;$('#teamSel').value=S.teamNo;$('#numSel').value=S.num;
+function changeTeam(){
+  const c=$('#clsSel').value,t=$('#teamSel').value,u=$('#numSel').value;if(c===S.cls&&t===S.teamNo&&u===S.num)return;
+  // 다른 학생이 이 기기를 쓰면 화면 기록을 새로 시작 (이미 보낸 기록은 시트에 남아 있음)
+  const fresh=S.num!=='' ;S.cls=c;S.teamNo=t;S.num=u;if(fresh){S.found={};S.quiz={};S.galaxy={}}teamRows=[];save();renderAll();loadTeam();
+}
+$('#clsSel').onchange=changeTeam;$('#teamSel').onchange=changeTeam;$('#numSel').onchange=changeTeam;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t));
+  ['galaxy','mission','dex','note','quiz'].forEach(k=>$('#tab-'+k).hidden=k!==t.dataset.tab);
+  if(t.dataset.tab==='galaxy')renderGalaxy();
+  if(t.dataset.tab==='note')renderNote();
+  if(t.dataset.tab==='dex'){renderDex();showTeamStat();loadTeam()}});
+$('#resetBtn').onclick=()=>{$('#resetConfirm').hidden=false};
+$('#resetNo').onclick=()=>{$('#resetConfirm').hidden=true};
+$('#resetYes').onclick=()=>{S.found={};S.quiz={};S.galaxy={};save();$('#resetConfirm').hidden=true;renderAll()};
+
+/* ---------- 선생님 대시보드 ---------- */
+let PIN='',dashRows=[],dashTimer=null;
+$('#teacherBtn').onclick=async()=>{
+  if(TEACH){if(await loadDash())openDash();return}
+  if(!GAS){$('#sheet').innerHTML=`<div class="sheet-head"><h2>선생님 화면</h2><button class="x" aria-label="닫기">✕</button></div><p>선생님 화면은 구글 시트를 연결해야 쓸 수 있어요. 지금은 학생 기록이 각 기기에만 저장돼요.</p><p style="color:var(--muted)">연결 방법: index.html의 CONFIG에서 GAS_URL에 Apps Script 웹 앱 주소를 넣어 주세요.</p>`;bindClose();openSheet();return}
+  $('#sheet').innerHTML=`<div class="sheet-head"><h2>선생님 확인</h2><button class="x" aria-label="닫기">✕</button></div>
+   <form class="pinbox" id="pinForm"><label for="pinIn">PIN 번호</label><input id="pinIn" type="password" inputmode="numeric" autocomplete="off">
+   <div id="pinErr" style="color:var(--emis)"></div><button class="cta" style="margin-top:0">탐사 현황 열기</button></form>`;
+  bindClose();openSheet();$('#pinIn').focus();
+  $('#pinForm').onsubmit=async e=>{e.preventDefault();PIN=$('#pinIn').value.trim();$('#pinErr').textContent='확인 중...';
+    const ok=await loadDash();if(ok){closeSheet();enterTeacher();openDash()}else{$('#pinErr').textContent=dashErr}};
+};
+let dashErr='';
+async function loadDash(){
+  const all=$('#dAll').getAttribute('aria-pressed')==='true';const day=all?'':($('#dDay').value||today());
+  try{const r=await fetch(`${GAS}?pin=${encodeURIComponent(PIN)}${day?`&day=${day}`:''}&t=${Date.now()}`,{cache:'no-store'});const j=await r.json();
+    if(!j.ok){dashErr=j.error==='pin'?'PIN이 맞지 않아요.':'시트에서 읽지 못했어요: '+j.error;return false}
+    dashRows=j.rows||[];$('#dStatus').className='sync ok';$('#dStatus').textContent=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' 기준';return true}
+  catch(e){dashErr='구글 시트에 연결하지 못했어요. 주소와 배포 설정(액세스: 모든 사용자)을 확인해 주세요.';$('#dStatus').className='sync wait';$('#dStatus').textContent='연결 실패';return false}
+}
+/* 시트가 "2-3" 같은 반 이름을 날짜로 바꿔 저장했을 때 되돌리기 */
+function normCls(c){c=String(c==null?'':c).trim();
+  const m=c.match(/^(\d{4})-(\d{2})-(\d{2})T/);if(m){const d=new Date(c);return`${d.getMonth()+1}-${d.getDate()}`}
+  const d2=c.match(/^\w{3} (\w{3}) (\d{1,2}) \d{4}/);if(d2){const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(d2[1])+1;return`${mo}-${+d2[2]}`}
+  return c}
+let dashUserPicked=false;
+function openDash(){
+  $('#dash').hidden=false;
+  if(!$('#dDay').value)$('#dDay').value=today();
+  dashRows.forEach(r=>{r.cls=normCls(r.cls);r.num=String(r.num==null?'':r.num).trim();r.team=String(r.team==null?'':r.team).trim()});
+  const cl=[...new Set([...CLASSES,...dashRows.map(r=>r.cls).filter(Boolean)])];
+  const cnt={};dashRows.forEach(r=>cnt[r.cls]=(cnt[r.cls]||0)+1);
+  // 직접 고르기 전에는 가장 최근에 기록이 들어온 반을 먼저 보여 줌
+  let keep=$('#dCls').value;
+  if(!dashUserPicked){const last=dashRows.slice().sort((a,b)=>b.ts-a.ts)[0];keep=last?last.cls:(keep||S.cls)}
+  $('#dCls').innerHTML=cl.map(c=>`<option value="${esc(c)}">${esc(c)}반${cnt[c]?` (${cnt[c]})`:''}</option>`).join('');$('#dCls').value=cl.includes(keep)?keep:cl[0];
+  renderDash();clearInterval(dashTimer);dashTimer=setInterval(async()=>{if(!$('#dash').hidden&&await loadDash())openDash()},10000);
+}
+function renderDash(){
+  const cls=$('#dCls').value;const seen=new Set();const latest={};
+  dashRows.filter(r=>String(r.cls)===cls).sort((a,b)=>a.ts-b.ts).forEach(r=>{
+    if(seen.has(r.uid))return;seen.add(r.uid);
+    const k=r.num+'|'+r.id;latest[k]=r});
+  const stu={};Object.values(latest).forEach(r=>{stu[r.num]=String(r.team)});
+  const nums=Object.keys(stu).sort((a,b)=>(+stu[a]-+stu[b])||(+a-+b));
+  const short={mw:'은하수',beehive:'벌집',pleiades:'좀생이',jewelbox:'보석상자',tuc47:'47 Tuc',omega:'오메가',m13:'M13',crescent:'초승달',chicken:'달리는닭',rosette:'장미',runningman:'런닝맨',iris:'아이리스',coalsack:'석탄포대',horsehead:'말머리'};
+  const zh=t=>({open:'1구역',globular:'2구역',emission:'3구역',reflection:'4구역',dark:'5구역',milkyway:'보너스'}[t]);
+  let h=`<table><thead><tr><th>모둠 · 번호</th>${OBJ.map(o=>`<th>${zh(o.type)}<br>${short[o.id]}</th>`).join('')}<th>우리은하</th><th>구역</th><th>점수</th><th>퀴즈</th><th>마지막 활동</th></tr></thead><tbody>`;
+  let prevTeam=null;
+  nums.forEach(u=>{
+    let p=0,last=0;const zones=new Set();
+    const cells=OBJ.map(o=>{const r=latest[u+'|'+o.id];if(!r)return'<td></td>';p+=+r.points||0;last=Math.max(last,r.ts);if(o.type!=='milkyway')zones.add(o.type);
+      const secs=+r.secs||0,fast=secs<30,shortM=String(r.memo||'').trim().length<10;
+      return`<td><button class="cell${fast?' fast':''}${shortM?' short':''}" data-k="${u}|${o.id}"><span class="s">${'★'.repeat(+r.points||0)||'·'}</span><span class="t num">${fmtSecs(secs)}</span></button></td>`}).join('');
+    const q=latest[u+'|quiz'];if(q)last=Math.max(last,q.ts);
+    let gn=0,gp=0;['g1','g2','g3','g4'].forEach(g=>{const r=latest[u+'|'+g];if(r){gn++;gp+=+r.points||0;last=Math.max(last,r.ts)}});
+    const sep=prevTeam!==null&&prevTeam!==stu[u]?' style="border-top:3px solid var(--line)"':'';prevTeam=stu[u];
+    h+=`<tr${sep}><td>${esc(stu[u])}모둠 ${u?esc(u)+'번':'(번호 없음)'}</td>${cells}<td class="num" style="color:${gn>=4?'var(--ok)':'inherit'}">${gn?`${gn}/4 ★${gp}`:''}</td><td class="num" style="color:${zones.size>=5?'var(--ok)':'inherit'}">${zones.size}/5</td><td class="num">${p}</td><td class="num">${q?q.points+'/'+QUIZ.length:''}</td><td class="num">${last?new Date(last).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</td></tr>`});
+  if(!nums.length)h+=`<tr><td colspan="${OBJ.length+6}" style="text-align:left;color:var(--muted);font-family:var(--body);font-size:14px">아직 이 반의 기록이 없어요.</td></tr>`;
+  const absent=Array.from({length:NSTU},(_,i)=>String(i+1)).filter(x=>!stu[x]);
+  $('#dMatrix').innerHTML=h+'</tbody></table>';
+  $('#dAbsent').innerHTML=absent.length?`아직 기록이 없는 번호: <b>${absent.join(', ')}</b>`:'모든 학생이 참여했어요.';
+  $('#dMatrix').querySelectorAll('.cell').forEach(b=>b.onclick=()=>{
+    const r=latest[b.dataset.k],o=OBJ.find(x=>x.id===r.id);let a={};try{a=JSON.parse(r.extra||'{}').answers||{}}catch(e){}
+    const G=TYPES[r.guess];
+    $('#dDetail').innerHTML=`<h3>${esc(cls)}반 ${esc(String(r.team))}모둠 ${esc(String(r.num))}번 · ${o.name}</h3>
+     <div class="row"><span>제출 ${new Date(r.ts).toLocaleTimeString('ko-KR')}</span><span>걸린 시간 ${fmtSecs(+r.secs||0)}</span><span>점수 ${'★'.repeat(+r.points||0)||'0'}</span>${o.type!=='milkyway'?`<span>학생 판단: ${G?G.name:'-'} (정답 ${TYPES[o.type].name})</span>`:''}</div>
+     <blockquote>${esc(String(r.memo||'(메모 없음)'))}</blockquote>`});
+}
+function fmtSecs(s){return s>=60?`${Math.floor(s/60)}분 ${s%60}초`:`${s}초`}
+function showBanner(m){const b=$('#banner');b.textContent=m;b.hidden=false}
+$('#dCls').onchange=()=>{dashUserPicked=true;renderDash()};
+$('#dAll').onclick=async()=>{const on=$('#dAll').getAttribute('aria-pressed')!=='true';$('#dAll').setAttribute('aria-pressed',on);$('#dDay').disabled=on;if(await loadDash())openDash()};
+$('#dDay').onchange=async()=>{if(await loadDash())openDash()};
+$('#dRefresh').onclick=async()=>{if(await loadDash())openDash()};
+$('#dClose').onclick=()=>{$('#dash').hidden=true;clearInterval(dashTimer)};
+$('#dClose').textContent='학생 화면 보기';
+function setTbh(){const b=$('#teachbar');document.documentElement.style.setProperty('--tbh',(b.hidden?0:b.offsetHeight)+'px')}
+window.addEventListener('resize',setTbh);
+function syncSelects(){$('#clsSel').value=S.cls;$('#teamSel').value=S.teamNo;$('#numSel').value=S.num}
+function enterTeacher(){
+  if(TEACH)return;TEACH=true;SAVED=S;
+  // 시범용 빈 기록 (기기에 저장되지 않고, 시트로도 보내지 않음)
+  S={cls:SAVED.cls,teamNo:SAVED.teamNo,num:'',found:{},quiz:{},galaxy:{},queue:[]};
+  teamRows=[];gAns={};gTap=null;syncSelects();
+  $('#teachbar').hidden=false;setTbh();$('#teacherBtn').textContent='탐사 현황';$('#resetBtn').textContent='시범 기록 지우기';
+  renderAll();flush();
+}
+function exitTeacher(){
+  if(!TEACH)return;TEACH=false;S=SAVED;SAVED=null;teamRows=[];gAns={};gTap=null;syncSelects();
+  $('#teachbar').hidden=true;setTbh();$('#dash').hidden=true;clearInterval(dashTimer);PIN='';
+  $('#teacherBtn').textContent='선생님';$('#resetBtn').textContent='처음부터 다시';
+  renderAll();loadTeam();flush();
+}
+$('#tbDash').onclick=async()=>{if(await loadDash())openDash()};
+$('#tbExit').onclick=exitTeacher;
+flush();loadTeam();
+try{localStorage.setItem('mw-test','1');localStorage.removeItem('mw-test')}catch(e){showBanner('이 브라우저는 기록을 기기에 저장하지 못해요(비공개 모드 등). 기록은 선생님 시트에 저장되고, 번호를 다시 고르면 불러와요.')}
+$('#teamReload').onclick=()=>{teamStat={state:'idle',msg:''};showTeamStat();loadTeam()};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadTeam()});
+if(location.hash==="#teacher")$("#teacherBtn").click();
+function renderAll(){renderTop();if(!$('#tab-galaxy').hidden)renderGalaxy();else gDotsOnly();renderMissions();if(!$('#tab-dex').hidden)renderDex();renderNote();renderQuiz()}
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(renderAll,250)});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(renderAll);
+renderAll();
+window.__appReady=true;
+</script>
+</body>
+</html>
